@@ -29,3 +29,13 @@ GET {{VehicleTrackingSystem_HostAddress}}/api/vehicle-types/GARBAGE_TRUCK/provid
 Accept: application/json
 
 ###
+
+GET {{VehicleTrackingSystem_HostAddress}}/api/vehicles
+Accept: application/json
+
+###
+
+GET {{VehicleTrackingSystem_HostAddress}}/api/vehicles/34%20ITF%20101
+Accept: application/json
+
+###

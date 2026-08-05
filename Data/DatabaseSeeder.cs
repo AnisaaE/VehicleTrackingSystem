@@ -55,17 +55,40 @@ public static class DatabaseSeeder
         IReadOnlyDictionary<string, Provider> providersByCode,
         CancellationToken cancellationToken)
     {
-        var existingCodes = await dbContext.VehicleTypes
-            .Select(vehicleType => vehicleType.Code)
-            .ToListAsync(cancellationToken);
+        await AddOrUpdateVehicleTypeAsync(
+            dbContext,
+            "Ambulance",
+            "AMBULANCE",
+            providersByCode["ARVENTO"],
+            cancellationToken);
 
-        var existingCodeSet = existingCodes.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        await AddOrUpdateVehicleTypeAsync(
+            dbContext,
+            "Garbage Truck",
+            "GARBAGE_TRUCK",
+            providersByCode["SAMPAS"],
+            cancellationToken);
 
-        AddVehicleTypeIfMissing(existingCodeSet, dbContext, "Ambulance", "AMBULANCE", providersByCode["ARVENTO"]);
-        AddVehicleTypeIfMissing(existingCodeSet, dbContext, "Garbage Truck", "GARBAGE_TRUCK", providersByCode["SAMPAS"]);
-        AddVehicleTypeIfMissing(existingCodeSet, dbContext, "Fire Truck", "FIRE_TRUCK", providersByCode["MOBILIZ"]);
-        AddVehicleTypeIfMissing(existingCodeSet, dbContext, "Work Machine", "WORK_MACHINE", providersByCode["SAMPAS"]);
-        AddVehicleTypeIfMissing(existingCodeSet, dbContext, "Street Sweeper", "SWEEPER", providersByCode["ARVENTO"]);
+        await AddOrUpdateVehicleTypeAsync(
+            dbContext,
+            "Fire Truck",
+            "FIRE_TRUCK",
+            providersByCode["ARVENTO"],
+            cancellationToken);
+
+        await AddOrUpdateVehicleTypeAsync(
+            dbContext,
+            "Work Machine",
+            "WORK_MACHINE",
+            providersByCode["SAMPAS"],
+            cancellationToken);
+
+        await AddOrUpdateVehicleTypeAsync(
+            dbContext,
+            "Street Sweeper",
+            "SWEEPER",
+            providersByCode["ARVENTO"],
+            cancellationToken);
     }
 
     private static async Task EnsureFieldMappingsAsync(
@@ -89,18 +112,21 @@ public static class DatabaseSeeder
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Latitude", "Lat");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Longitude", "Lon");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Speed", "VehicleSpeed");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "IgnitionOn", "Ignition");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Timestamp", "RecordTime");
 
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Plate", "PlateNo");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Latitude", "Latitude");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Longitude", "Longitude");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Speed", "Speed");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "IgnitionOn", "IgnitionStatus");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Timestamp", "DateTime");
 
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Plate", "LicensePlate");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Latitude", "Y");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Longitude", "X");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Speed", "CurrentSpeed");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "IgnitionOn", "IgnitionState");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Timestamp", "GpsTime");
     }
 
@@ -126,26 +152,32 @@ public static class DatabaseSeeder
         };
     }
 
-    private static void AddVehicleTypeIfMissing(
-        ISet<string> existingCodes,
+    private static async Task AddOrUpdateVehicleTypeAsync(
         VehicleTrackingDbContext dbContext,
         string name,
         string code,
-        Provider provider)
+        Provider provider,
+        CancellationToken cancellationToken)
     {
         var normalizedCode = NormalizeCode(code);
 
-        if (!existingCodes.Add(normalizedCode))
+        var existingVehicleType = await dbContext.VehicleTypes
+            .FirstOrDefaultAsync(vehicleType => vehicleType.Code == normalizedCode, cancellationToken);
+
+        if (existingVehicleType is null)
         {
+            dbContext.VehicleTypes.Add(new VehicleType
+            {
+                Name = name,
+                Code = normalizedCode,
+                ProviderId = provider.Id
+            });
+
             return;
         }
 
-        dbContext.VehicleTypes.Add(new VehicleType
-        {
-            Name = name,
-            Code = normalizedCode,
-            ProviderId = provider.Id
-        });
+        existingVehicleType.Name = name;
+        existingVehicleType.ProviderId = provider.Id;
     }
 
     private static void AddFieldMappingIfMissing(

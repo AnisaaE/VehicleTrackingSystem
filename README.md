@@ -2,7 +2,7 @@
 
 Vehicle Tracking System is a .NET 8 ASP.NET Core Web API for resolving which GPS provider should be used for each municipal vehicle type. The project uses controller-based endpoints, Entity Framework Core, PostgreSQL, Swagger/OpenAPI, DTOs, and a small service layer.
 
-No real provider API calls are made yet. The Arvento, Sampas, and Mobiliz classes are placeholders for future integrations.
+No real provider API calls are made yet. The Arvento provider returns simulated fire truck locations for the second-stage web map, while Sampas and Mobiliz remain placeholders for future integrations.
 
 ## Project Structure
 
@@ -58,6 +58,7 @@ Services contain the application logic. `ProviderService` reads providers and fi
 DTOs define the API response shape. The controllers return DTOs instead of EF entity objects.
 
 Tracking provider classes implement `IVehicleTrackingProvider`. They are empty now because real provider APIs are out of scope, but they give the resolver a stable extension point.
+The Arvento provider also exposes mock current locations for 5 fire trucks, so a frontend can poll the Web API without connecting directly to a provider.
 
 ## Database Relationships
 
@@ -161,6 +162,8 @@ GET /api/providers/{id}/field-mappings
 GET /api/vehicle-types
 GET /api/vehicle-types/{id}
 GET /api/vehicle-types/{code}/provider
+GET /api/vehicles
+GET /api/vehicles/{plate}
 ```
 
 Example Swagger checks:
@@ -172,6 +175,8 @@ GET /api/providers/1/field-mappings
 GET /api/vehicle-types
 GET /api/vehicle-types/1
 GET /api/vehicle-types/GARBAGE_TRUCK/provider
+GET /api/vehicles
+GET /api/vehicles/34%20ITF%20101
 ```
 
 Expected provider resolution examples from seeded data:
@@ -179,7 +184,7 @@ Expected provider resolution examples from seeded data:
 ```text
 AMBULANCE -> ARVENTO
 GARBAGE_TRUCK -> SAMPAS
-FIRE_TRUCK -> MOBILIZ
+FIRE_TRUCK -> ARVENTO
 WORK_MACHINE -> SAMPAS
 SWEEPER -> ARVENTO
 ```
@@ -203,6 +208,7 @@ Plate
 Latitude
 Longitude
 Speed
+IgnitionOn
 Timestamp
 ```
 
