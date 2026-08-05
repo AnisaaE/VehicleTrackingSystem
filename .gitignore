@@ -1,0 +1,56 @@
+# Build output
+bin/
+obj/
+build-check/
+
+# User-specific IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Rider
+_ReSharper*/
+*.DotSettings.user
+
+# Visual Studio Code local history/extensions
+.history/
+
+# Logs
+*.log
+logs/
+
+# Test results and coverage
+TestResults/
+coverage/
+coverage.*/
+*.coverage
+*.coveragexml
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Entity Framework temporary bundles
+efbundle*
+
+# Local environment and secrets
+.env
+.env.*
+appsettings.Local.json
+appsettings.*.local.json
+secrets.json
+
+# OS files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Publish output
+publish/
+*.publishsettings
