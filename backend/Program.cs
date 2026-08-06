@@ -26,8 +26,32 @@ builder.Services.AddCors(options =>
             .AllowCredentials());
 });
 
-builder.Services.AddDbContext<VehicleTrackingDbContext>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+var databaseProvider = builder.Configuration.GetValue<string>("DatabaseProvider") ?? "PostgreSQL";
+
+if (databaseProvider.Equals("Oracle", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddDbContext<OracleVehicleTrackingDbContext>(options =>
+        options.UseOracle(builder.Configuration.GetConnectionString("OracleConnection")
+            ?? builder.Configuration.GetConnectionString("DefaultConnection")));
+
+    builder.Services.AddScoped<VehicleTrackingDbContext>(serviceProvider =>
+        serviceProvider.GetRequiredService<OracleVehicleTrackingDbContext>());
+}
+else if (databaseProvider.Equals("PostgreSQL", StringComparison.OrdinalIgnoreCase)
+    || databaseProvider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddDbContext<PostgreSqlVehicleTrackingDbContext>(options =>
+        options.UseNpgsql(builder.Configuration.GetConnectionString("PostgreSqlConnection")
+            ?? builder.Configuration.GetConnectionString("DefaultConnection")));
+
+    builder.Services.AddScoped<VehicleTrackingDbContext>(serviceProvider =>
+        serviceProvider.GetRequiredService<PostgreSqlVehicleTrackingDbContext>());
+}
+else
+{
+    throw new InvalidOperationException(
+        $"Unsupported DatabaseProvider '{databaseProvider}'. Use 'Oracle' or 'PostgreSQL'.");
+}
 
 builder.Services.AddScoped<IProviderService, ProviderService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();

@@ -1,9 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace VehicleTrackingSystem.Migrations
+namespace VehicleTrackingSystem.Migrations.PostgreSql
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

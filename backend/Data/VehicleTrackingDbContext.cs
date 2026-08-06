@@ -3,9 +3,9 @@ using VehicleTrackingSystem.Entities;
 
 namespace VehicleTrackingSystem.Data;
 
-public sealed class VehicleTrackingDbContext : DbContext
+public class VehicleTrackingDbContext : DbContext
 {
-    public VehicleTrackingDbContext(DbContextOptions<VehicleTrackingDbContext> options)
+    public VehicleTrackingDbContext(DbContextOptions options)
         : base(options)
     {
     }
