@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using VehicleTrackingSystem.Data;
+using VehicleTrackingSystem.Hubs;
 using VehicleTrackingSystem.Interfaces;
 using VehicleTrackingSystem.Services;
 using VehicleTrackingSystem.TrackingProviders;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -24,6 +26,7 @@ builder.Services.AddScoped<IProviderService, ProviderService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IVehicleLocationService, VehicleLocationService>();
 builder.Services.AddScoped<IVehicleTrackingProviderResolver, VehicleTrackingProviderResolver>();
+builder.Services.AddHostedService<VehicleLocationBroadcastService>();
 
 builder.Services.AddScoped<IVehicleTrackingProvider, ArventoTrackingProvider>();
 builder.Services.AddScoped<IVehicleTrackingProvider, SampasTrackingProvider>();
@@ -49,5 +52,6 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.MapControllers();
+app.MapHub<VehicleLocationHub>("/vehicle-location-hub");
 
 app.Run();

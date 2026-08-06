@@ -59,6 +59,7 @@ DTOs define the API response shape. The controllers return DTOs instead of EF en
 
 Tracking provider classes implement `IVehicleTrackingProvider`. They are empty now because real provider APIs are out of scope, but they give the resolver a stable extension point.
 The Arvento provider also exposes mock current locations for 5 fire trucks, so a frontend can poll the Web API without connecting directly to a provider.
+For live updates, the API exposes a SignalR hub at `/vehicle-location-hub`. The backend broadcasts the `vehicleLocationsUpdated` event every 3 seconds with the same vehicle location DTOs returned by `GET /api/vehicles`.
 
 ## Database Relationships
 
@@ -164,6 +165,7 @@ GET /api/vehicle-types/{id}
 GET /api/vehicle-types/{code}/provider
 GET /api/vehicles
 GET /api/vehicles/{plate}
+SignalR /vehicle-location-hub
 ```
 
 Example Swagger checks:
@@ -177,6 +179,12 @@ GET /api/vehicle-types/1
 GET /api/vehicle-types/GARBAGE_TRUCK/provider
 GET /api/vehicles
 GET /api/vehicles/34%20ITF%20101
+```
+
+SignalR client event:
+
+```text
+vehicleLocationsUpdated
 ```
 
 Expected provider resolution examples from seeded data:
