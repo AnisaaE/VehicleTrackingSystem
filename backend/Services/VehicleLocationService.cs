@@ -40,6 +40,29 @@ public sealed class VehicleLocationService : IVehicleLocationService
         return await provider.GetCurrentLocationsAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
+        string providerCode,
+        CancellationToken cancellationToken = default)
+    {
+        var activeProviderCode = await GetActiveProviderCodeAsync(
+            providerCode,
+            cancellationToken);
+
+        if (activeProviderCode is null)
+        {
+            return [];
+        }
+
+        var provider = _providerResolver.Resolve(activeProviderCode);
+
+        if (provider is null)
+        {
+            return [];
+        }
+
+        return await provider.GetCurrentLocationsAsync(cancellationToken);
+    }
+
     public async Task<VehicleLocationDto?> GetCurrentLocationByPlateAsync(
         string plate,
         CancellationToken cancellationToken = default)
@@ -47,6 +70,19 @@ public sealed class VehicleLocationService : IVehicleLocationService
         var normalizedPlate = NormalizePlate(plate);
 
         var vehicles = await GetCurrentLocationsAsync(cancellationToken);
+
+        return vehicles.FirstOrDefault(vehicle =>
+            NormalizePlate(vehicle.Plate) == normalizedPlate);
+    }
+
+    public async Task<VehicleLocationDto?> GetCurrentLocationByPlateAsync(
+        string providerCode,
+        string plate,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPlate = NormalizePlate(plate);
+
+        var vehicles = await GetCurrentLocationsAsync(providerCode, cancellationToken);
 
         return vehicles.FirstOrDefault(vehicle =>
             NormalizePlate(vehicle.Plate) == normalizedPlate);
@@ -61,6 +97,21 @@ public sealed class VehicleLocationService : IVehicleLocationService
                 vehicleType.Code == FireTruckVehicleTypeCode &&
                 vehicleType.Provider.IsActive)
             .Select(vehicleType => vehicleType.Provider.Code)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<string?> GetActiveProviderCodeAsync(
+        string providerCode,
+        CancellationToken cancellationToken)
+    {
+        var normalizedProviderCode = providerCode.Trim().ToUpperInvariant();
+
+        return await _dbContext.Providers
+            .AsNoTracking()
+            .Where(provider =>
+                provider.Code == normalizedProviderCode &&
+                provider.IsActive)
+            .Select(provider => provider.Code)
             .FirstOrDefaultAsync(cancellationToken);
     }
 

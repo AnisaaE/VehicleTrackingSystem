@@ -6,7 +6,7 @@ namespace VehicleTrackingSystem.Services;
 
 public sealed class VehicleLocationBroadcastService : BackgroundService
 {
-    private static readonly TimeSpan BroadcastInterval = TimeSpan.FromSeconds(3);
+    private static readonly TimeSpan BroadcastInterval = TimeSpan.FromSeconds(2);
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<VehicleLocationHub> _hubContext;
@@ -48,13 +48,24 @@ public sealed class VehicleLocationBroadcastService : BackgroundService
             using var scope = _scopeFactory.CreateScope();
             var vehicleLocationService = scope.ServiceProvider
                 .GetRequiredService<IVehicleLocationService>();
+            var providerService = scope.ServiceProvider
+                .GetRequiredService<IProviderService>();
 
-            var vehicles = await vehicleLocationService.GetCurrentLocationsAsync(cancellationToken);
+            var providers = await providerService.GetAllAsync(cancellationToken);
 
-            await _hubContext.Clients.All.SendAsync(
-                "vehicleLocationsUpdated",
-                vehicles,
-                cancellationToken);
+            foreach (var provider in providers.Where(provider => provider.IsActive))
+            {
+                var vehicles = await vehicleLocationService.GetCurrentLocationsAsync(
+                    provider.Code,
+                    cancellationToken);
+
+                await _hubContext.Clients
+                    .Group(VehicleLocationHub.GetProviderGroupName(provider.Code))
+                    .SendAsync(
+                        "vehicleLocationsUpdated",
+                        vehicles,
+                        cancellationToken);
+            }
         }
         catch (OperationCanceledException)
         {

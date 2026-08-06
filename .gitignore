@@ -54,3 +54,7 @@ Desktop.ini
 # Publish output
 publish/
 *.publishsettings
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

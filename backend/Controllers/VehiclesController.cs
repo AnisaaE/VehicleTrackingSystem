@@ -19,9 +19,12 @@ public sealed class VehiclesController : ControllerBase
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<VehicleLocationDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<VehicleLocationDto>>> GetCurrentLocations(
+        [FromQuery] string? providerCode,
         CancellationToken cancellationToken)
     {
-        var vehicles = await _vehicleLocationService.GetCurrentLocationsAsync(cancellationToken);
+        var vehicles = string.IsNullOrWhiteSpace(providerCode)
+            ? await _vehicleLocationService.GetCurrentLocationsAsync(cancellationToken)
+            : await _vehicleLocationService.GetCurrentLocationsAsync(providerCode, cancellationToken);
 
         return Ok(vehicles);
     }
@@ -31,11 +34,15 @@ public sealed class VehiclesController : ControllerBase
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<VehicleLocationDto>> GetCurrentLocationByPlate(
         string plate,
+        [FromQuery] string? providerCode,
         CancellationToken cancellationToken)
     {
-        var vehicle = await _vehicleLocationService.GetCurrentLocationByPlateAsync(
-            plate,
-            cancellationToken);
+        var vehicle = string.IsNullOrWhiteSpace(providerCode)
+            ? await _vehicleLocationService.GetCurrentLocationByPlateAsync(plate, cancellationToken)
+            : await _vehicleLocationService.GetCurrentLocationByPlateAsync(
+                providerCode,
+                plate,
+                cancellationToken);
 
         if (vehicle is null)
         {
