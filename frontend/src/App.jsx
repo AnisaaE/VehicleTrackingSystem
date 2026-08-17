@@ -39,6 +39,10 @@ function normalizePlate(value) {
   return value.replace(/\s|-/g, '').toUpperCase();
 }
 
+function getVehicleKey(vehicle) {
+  return `${vehicle.provider}:${vehicle.plate}`;
+}
+
 function MapFocus({ vehicles, selectedVehicle }) {
   const map = useMap();
   const previousSelectedPlate = useRef(null);
@@ -92,11 +96,11 @@ function VehicleMap({ vehicles, selectedVehicle, onSelectVehicle }) {
       <MapFocus vehicles={vehicles} selectedVehicle={selectedVehicle} />
       {vehicles.map(vehicle => (
         <Marker
-          key={vehicle.plate}
+          key={getVehicleKey(vehicle)}
           position={[vehicle.latitude, vehicle.longitude]}
           icon={markerIcon}
           eventHandlers={{
-            click: () => onSelectVehicle(vehicle.plate)
+            click: () => onSelectVehicle(getVehicleKey(vehicle))
           }}
         >
           <Popup>
@@ -134,7 +138,7 @@ function DetailItem({ icon: Icon, label, value }) {
 }
 
 export default function App() {
-  const [selectedProviderCode, setSelectedProviderCode] = useState('ARVENTO');
+  const [selectedProviderCode, setSelectedProviderCode] = useState('');
   const { vehicles, providers, connectionStatus, lastUpdatedAt, error } =
     useVehicleLocations(selectedProviderCode);
   const [searchTerm, setSearchTerm] = useState('');
@@ -153,13 +157,13 @@ export default function App() {
   }, [vehicles, searchTerm]);
 
   const selectedVehicle = useMemo(
-    () => vehicles.find(vehicle => vehicle.plate === selectedPlate) ?? null,
+    () => vehicles.find(vehicle => getVehicleKey(vehicle) === selectedPlate) ?? null,
     [selectedPlate, vehicles]
   );
 
-  const selectedProviderName = providers.find(
-    provider => provider.code === selectedProviderCode
-  )?.name ?? selectedProviderCode;
+  const selectedProviderName = selectedProviderCode
+    ? providers.find(provider => provider.code === selectedProviderCode)?.name ?? selectedProviderCode
+    : 'Tümü';
 
   useEffect(() => {
     setSelectedPlate(null);
@@ -184,13 +188,18 @@ export default function App() {
               onChange={event => setSelectedProviderCode(event.target.value)}
             >
               {providers.length === 0 ? (
-                <option value="ARVENTO">Arvento</option>
+                <option value="">Tümü</option>
               ) : (
-                providers.map(provider => (
-                  <option key={provider.code} value={provider.code}>
-                    {provider.name}
-                  </option>
-                ))
+                <>
+                  <option value="">Tümü</option>
+                  {providers
+                    .filter(provider => provider.isActive)
+                    .map(provider => (
+                      <option key={provider.code} value={provider.code}>
+                        {provider.name}
+                      </option>
+                    ))}
+                </>
               )}
             </select>
           </label>
@@ -230,9 +239,9 @@ export default function App() {
             ) : (
               filteredVehicles.map(vehicle => (
                 <button
-                  key={vehicle.plate}
-                  className={`vehicle-row ${selectedVehicle?.plate === vehicle.plate ? 'selected' : ''}`}
-                  onClick={() => setSelectedPlate(vehicle.plate)}
+                  key={getVehicleKey(vehicle)}
+                  className={`vehicle-row ${selectedPlate === getVehicleKey(vehicle) ? 'selected' : ''}`}
+                  onClick={() => setSelectedPlate(getVehicleKey(vehicle))}
                   type="button"
                 >
                   <div>

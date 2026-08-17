@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.SignalR;
+using VehicleTrackingSystem.DTOs.Vehicles;
 using VehicleTrackingSystem.Hubs;
 using VehicleTrackingSystem.Interfaces;
 
@@ -52,12 +53,15 @@ public sealed class VehicleLocationBroadcastService : BackgroundService
                 .GetRequiredService<IProviderService>();
 
             var providers = await providerService.GetAllAsync(cancellationToken);
+            var allVehicles = new List<VehicleLocationDto>();
 
             foreach (var provider in providers.Where(provider => provider.IsActive))
             {
                 var vehicles = await vehicleLocationService.GetCurrentLocationsAsync(
                     provider.Code,
                     cancellationToken);
+
+                allVehicles.AddRange(vehicles);
 
                 await _hubContext.Clients
                     .Group(VehicleLocationHub.GetProviderGroupName(provider.Code))
@@ -66,6 +70,13 @@ public sealed class VehicleLocationBroadcastService : BackgroundService
                         vehicles,
                         cancellationToken);
             }
+
+            await _hubContext.Clients
+                .Group(VehicleLocationHub.GetAllProvidersGroupName())
+                .SendAsync(
+                    "vehicleLocationsUpdated",
+                    allVehicles,
+                    cancellationToken);
         }
         catch (OperationCanceledException)
         {

@@ -7,8 +7,6 @@ namespace VehicleTrackingSystem.Services;
 
 public sealed class VehicleLocationService : IVehicleLocationService
 {
-    private const string FireTruckVehicleTypeCode = "FIRE_TRUCK";
-
     private readonly VehicleTrackingDbContext _dbContext;
     private readonly IVehicleTrackingProviderResolver _providerResolver;
     private readonly IVehicleLocationMapper _vehicleLocationMapper;
@@ -26,26 +24,22 @@ public sealed class VehicleLocationService : IVehicleLocationService
     public async Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
         CancellationToken cancellationToken = default)
     {
-        var providerCode = await GetActiveProviderCodeAsync(cancellationToken);
+        var providerCodes = await GetActiveProviderCodesAsync(cancellationToken);
+        var vehicles = new List<VehicleLocationDto>();
 
-        if (providerCode is null)
+        foreach (var providerCode in providerCodes)
         {
-            return [];
+            var providerVehicles = await GetProviderLocationsAsync(
+                providerCode,
+                cancellationToken);
+
+            vehicles.AddRange(providerVehicles);
         }
 
-        var provider = _providerResolver.Resolve(providerCode);
-
-        if (provider is null)
-        {
-            return [];
-        }
-
-        var rawLocations = await provider.GetRawLocationsAsync(cancellationToken);
-
-        return await _vehicleLocationMapper.MapAsync(
-            providerCode,
-            rawLocations,
-            cancellationToken);
+        return vehicles
+            .OrderBy(vehicle => vehicle.Provider)
+            .ThenBy(vehicle => vehicle.Plate)
+            .ToList();
     }
 
     public async Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
@@ -61,18 +55,8 @@ public sealed class VehicleLocationService : IVehicleLocationService
             return [];
         }
 
-        var provider = _providerResolver.Resolve(activeProviderCode);
-
-        if (provider is null)
-        {
-            return [];
-        }
-
-        var rawLocations = await provider.GetRawLocationsAsync(cancellationToken);
-
-        return await _vehicleLocationMapper.MapAsync(
+        return await GetProviderLocationsAsync(
             activeProviderCode,
-            rawLocations,
             cancellationToken);
     }
 
@@ -101,16 +85,15 @@ public sealed class VehicleLocationService : IVehicleLocationService
             NormalizePlate(vehicle.Plate) == normalizedPlate);
     }
 
-    private async Task<string?> GetActiveProviderCodeAsync(
+    private async Task<IReadOnlyList<string>> GetActiveProviderCodesAsync(
         CancellationToken cancellationToken)
     {
-        return await _dbContext.VehicleTypes
+        return await _dbContext.Providers
             .AsNoTracking()
-            .Where(vehicleType =>
-                vehicleType.Code == FireTruckVehicleTypeCode &&
-                vehicleType.Provider.IsActive)
-            .Select(vehicleType => vehicleType.Provider.Code)
-            .FirstOrDefaultAsync(cancellationToken);
+            .Where(provider => provider.IsActive)
+            .OrderBy(provider => provider.Code)
+            .Select(provider => provider.Code)
+            .ToListAsync(cancellationToken);
     }
 
     private async Task<string?> GetActiveProviderCodeAsync(
@@ -126,6 +109,25 @@ public sealed class VehicleLocationService : IVehicleLocationService
                 provider.IsActive)
             .Select(provider => provider.Code)
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<VehicleLocationDto>> GetProviderLocationsAsync(
+        string providerCode,
+        CancellationToken cancellationToken)
+    {
+        var provider = _providerResolver.Resolve(providerCode);
+
+        if (provider is null)
+        {
+            return [];
+        }
+
+        var rawLocations = await provider.GetRawLocationsAsync(cancellationToken);
+
+        return await _vehicleLocationMapper.MapAsync(
+            providerCode,
+            rawLocations,
+            cancellationToken);
     }
 
     private static string NormalizePlate(string plate) =>

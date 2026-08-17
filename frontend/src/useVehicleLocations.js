@@ -46,7 +46,9 @@ export function useVehicleLocations(providerCode) {
         setError(null);
       },
       setConnectionStatus,
-      nextConnection => nextConnection.invoke('SubscribeToProvider', providerCode)
+      nextConnection => providerCode
+        ? nextConnection.invoke('SubscribeToProvider', providerCode)
+        : nextConnection.invoke('SubscribeToAllProviders')
     );
 
     async function start() {
@@ -66,7 +68,11 @@ export function useVehicleLocations(providerCode) {
 
       try {
         await connection.start();
-        await connection.invoke('SubscribeToProvider', providerCode);
+        if (providerCode) {
+          await connection.invoke('SubscribeToProvider', providerCode);
+        } else {
+          await connection.invoke('SubscribeToAllProviders');
+        }
 
         if (isMounted) {
           setConnectionStatus('connected');
