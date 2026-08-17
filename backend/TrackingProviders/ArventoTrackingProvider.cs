@@ -1,5 +1,4 @@
 using VehicleTrackingSystem.Interfaces;
-using VehicleTrackingSystem.DTOs.Vehicles;
 using System.Text.Json;
 
 namespace VehicleTrackingSystem.TrackingProviders;
@@ -28,7 +27,7 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
 
     public string ProviderCode => "ARVENTO";
 
-    public Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
+    public Task<IReadOnlyList<JsonElement>> GetRawLocationsAsync(
         CancellationToken cancellationToken = default)
     {
         var routes = _routes.Value;
@@ -36,7 +35,7 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
 
         if (routes.Count == 0)
         {
-            return Task.FromResult<IReadOnlyList<VehicleLocationDto>>([]);
+            return Task.FromResult<IReadOnlyList<JsonElement>>([]);
         }
 
         var locations = VehicleSeeds
@@ -48,20 +47,21 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
                 var point = route.GetPointAt(progress);
                 var speed = route.EstimatedSpeedKmh;
 
-                return new VehicleLocationDto(
-                    vehicle.Plate,
-                    vehicle.Name,
-                    "Fire Truck",
-                    ProviderCode,
-                    Math.Round((decimal)point.Latitude, 6),
-                    Math.Round((decimal)point.Longitude, 6),
-                    speed,
-                    true,
-                    now);
+                return JsonSerializer.SerializeToElement(new
+                {
+                    Vehicle = vehicle.Plate,
+                    VehicleName = vehicle.Name,
+                    VehicleType = "Fire Truck",
+                    Lat = Math.Round((decimal)point.Latitude, 6),
+                    Lon = Math.Round((decimal)point.Longitude, 6),
+                    VehicleSpeed = speed,
+                    Ignition = true,
+                    RecordTime = now
+                });
             })
             .ToList();
 
-        return Task.FromResult<IReadOnlyList<VehicleLocationDto>>(locations);
+        return Task.FromResult<IReadOnlyList<JsonElement>>(locations);
     }
 
     private sealed record VehicleSeed(

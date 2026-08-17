@@ -109,6 +109,8 @@ public static class DatabaseSeeder
             .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Plate", "Vehicle");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "VehicleName", "VehicleName");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "VehicleType", "VehicleType");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Latitude", "Lat");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Longitude", "Lon");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Speed", "VehicleSpeed");
@@ -116,6 +118,8 @@ public static class DatabaseSeeder
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["ARVENTO"], "Timestamp", "RecordTime");
 
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Plate", "PlateNo");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "VehicleName", "VehicleName");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "VehicleType", "VehicleType");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Latitude", "Latitude");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Longitude", "Longitude");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Speed", "Speed");
@@ -123,6 +127,8 @@ public static class DatabaseSeeder
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["SAMPAS"], "Timestamp", "DateTime");
 
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Plate", "LicensePlate");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "VehicleName", "VehicleName");
+        AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "VehicleType", "VehicleType");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Latitude", "Y");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Longitude", "X");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Speed", "CurrentSpeed");

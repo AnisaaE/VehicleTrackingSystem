@@ -1,5 +1,5 @@
 using VehicleTrackingSystem.Interfaces;
-using VehicleTrackingSystem.DTOs.Vehicles;
+using System.Text.Json;
 
 namespace VehicleTrackingSystem.TrackingProviders;
 
@@ -7,9 +7,9 @@ public sealed class SampasTrackingProvider : IVehicleTrackingProvider
 {
     public string ProviderCode => "SAMPAS";
 
-    public Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
+    public Task<IReadOnlyList<JsonElement>> GetRawLocationsAsync(
         CancellationToken cancellationToken = default)
     {
-        return Task.FromResult<IReadOnlyList<VehicleLocationDto>>([]);
+        return Task.FromResult<IReadOnlyList<JsonElement>>([]);
     }
 }

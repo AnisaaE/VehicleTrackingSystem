@@ -11,13 +11,16 @@ public sealed class VehicleLocationService : IVehicleLocationService
 
     private readonly VehicleTrackingDbContext _dbContext;
     private readonly IVehicleTrackingProviderResolver _providerResolver;
+    private readonly IVehicleLocationMapper _vehicleLocationMapper;
 
     public VehicleLocationService(
         VehicleTrackingDbContext dbContext,
-        IVehicleTrackingProviderResolver providerResolver)
+        IVehicleTrackingProviderResolver providerResolver,
+        IVehicleLocationMapper vehicleLocationMapper)
     {
         _dbContext = dbContext;
         _providerResolver = providerResolver;
+        _vehicleLocationMapper = vehicleLocationMapper;
     }
 
     public async Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
@@ -37,7 +40,12 @@ public sealed class VehicleLocationService : IVehicleLocationService
             return [];
         }
 
-        return await provider.GetCurrentLocationsAsync(cancellationToken);
+        var rawLocations = await provider.GetRawLocationsAsync(cancellationToken);
+
+        return await _vehicleLocationMapper.MapAsync(
+            providerCode,
+            rawLocations,
+            cancellationToken);
     }
 
     public async Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
@@ -60,7 +68,12 @@ public sealed class VehicleLocationService : IVehicleLocationService
             return [];
         }
 
-        return await provider.GetCurrentLocationsAsync(cancellationToken);
+        var rawLocations = await provider.GetRawLocationsAsync(cancellationToken);
+
+        return await _vehicleLocationMapper.MapAsync(
+            activeProviderCode,
+            rawLocations,
+            cancellationToken);
     }
 
     public async Task<VehicleLocationDto?> GetCurrentLocationByPlateAsync(

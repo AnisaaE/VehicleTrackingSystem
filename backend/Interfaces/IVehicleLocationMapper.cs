@@ -3,10 +3,10 @@ using VehicleTrackingSystem.DTOs.Vehicles;
 
 namespace VehicleTrackingSystem.Interfaces;
 
-public interface IVehicleTrackingProvider
+public interface IVehicleLocationMapper
 {
-    string ProviderCode { get; }
-
-    Task<IReadOnlyList<JsonElement>> GetRawLocationsAsync(
+    Task<IReadOnlyList<VehicleLocationDto>> MapAsync(
+        string providerCode,
+        IReadOnlyList<JsonElement> rawLocations,
         CancellationToken cancellationToken = default);
 }

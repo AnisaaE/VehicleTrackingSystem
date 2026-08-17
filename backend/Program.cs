@@ -56,6 +56,7 @@ else
 builder.Services.AddScoped<IProviderService, ProviderService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IVehicleLocationService, VehicleLocationService>();
+builder.Services.AddScoped<IVehicleLocationMapper, VehicleLocationMapper>();
 builder.Services.AddScoped<IVehicleTrackingProviderResolver, VehicleTrackingProviderResolver>();
 builder.Services.AddHostedService<VehicleLocationBroadcastService>();
 
