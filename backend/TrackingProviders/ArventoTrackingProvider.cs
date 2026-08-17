@@ -18,9 +18,13 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
     ];
 
     private readonly Lazy<IReadOnlyList<RouteData>> _routes;
+    private readonly ITrackingProviderCredentialService _credentialService;
 
-    public ArventoTrackingProvider(IWebHostEnvironment environment)
+    public ArventoTrackingProvider(
+        IWebHostEnvironment environment,
+        ITrackingProviderCredentialService credentialService)
     {
+        _credentialService = credentialService;
         _routes = new Lazy<IReadOnlyList<RouteData>>(
             () => LoadRoutes(environment.ContentRootPath));
     }
@@ -30,6 +34,7 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
     public Task<IReadOnlyList<JsonElement>> GetRawLocationsAsync(
         CancellationToken cancellationToken = default)
     {
+        var credentials = _credentialService.GetCredentials(ProviderCode);
         var routes = _routes.Value;
         var now = DateTimeOffset.UtcNow;
 
@@ -56,12 +61,20 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
                     Lon = Math.Round((decimal)point.Longitude, 6),
                     VehicleSpeed = speed,
                     Ignition = true,
-                    RecordTime = now
+                    RecordTime = now,
+                    HasCredentials = HasAnyCredential(credentials)
                 });
             })
             .ToList();
 
         return Task.FromResult<IReadOnlyList<JsonElement>>(locations);
+    }
+
+    private static bool HasAnyCredential(Options.TrackingProviderCredentials credentials)
+    {
+        return !string.IsNullOrWhiteSpace(credentials.Username)
+            || !string.IsNullOrWhiteSpace(credentials.Password)
+            || !string.IsNullOrWhiteSpace(credentials.ApiKey);
     }
 
     private sealed record VehicleSeed(

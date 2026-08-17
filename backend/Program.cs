@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using VehicleTrackingSystem.Data;
 using VehicleTrackingSystem.Hubs;
 using VehicleTrackingSystem.Interfaces;
+using VehicleTrackingSystem.Options;
 using VehicleTrackingSystem.Services;
 using VehicleTrackingSystem.TrackingProviders;
 
@@ -13,6 +14,8 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
+builder.Services.Configure<TrackingProviderCredentialsOptions>(
+    builder.Configuration.GetSection(TrackingProviderCredentialsOptions.SectionName));
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Frontend", policy =>
@@ -58,6 +61,7 @@ builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
 builder.Services.AddScoped<IVehicleLocationService, VehicleLocationService>();
 builder.Services.AddScoped<IVehicleLocationMapper, VehicleLocationMapper>();
 builder.Services.AddScoped<IVehicleTrackingProviderResolver, VehicleTrackingProviderResolver>();
+builder.Services.AddScoped<ITrackingProviderCredentialService, TrackingProviderCredentialService>();
 builder.Services.AddHostedService<VehicleLocationBroadcastService>();
 
 builder.Services.AddScoped<IVehicleTrackingProvider, ArventoTrackingProvider>();
