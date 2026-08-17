@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CarFront,
   Flame,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { appConfig } from './config';
 import { useVehicleLocations } from './useVehicleLocations';
 
 const markerIcon = new L.Icon({
@@ -41,6 +42,17 @@ function normalizePlate(value) {
 
 function getVehicleKey(vehicle) {
   return `${vehicle.provider}:${vehicle.plate}`;
+}
+
+function formatConnectionStatus(status) {
+  const labels = {
+    connecting: 'BaДџlanД±yor',
+    connected: 'BaДџlД±',
+    reconnecting: 'Yeniden baДџlanД±yor',
+    disconnected: 'BaДџlantД± yok'
+  };
+
+  return labels[status] ?? status;
 }
 
 function MapFocus({ vehicles, selectedVehicle }) {
@@ -84,8 +96,8 @@ function MapFocus({ vehicles, selectedVehicle }) {
 function VehicleMap({ vehicles, selectedVehicle, onSelectVehicle }) {
   return (
     <MapContainer
-      center={[40.765, 29.94]}
-      zoom={12}
+      center={appConfig.mapCenter}
+      zoom={appConfig.mapZoom}
       className="vehicle-map"
       scrollWheelZoom
     >
@@ -120,7 +132,7 @@ function StatusBadge({ status }) {
   return (
     <span className={`status-badge ${isConnected ? 'connected' : 'disconnected'}`}>
       <Icon size={16} />
-      {status}
+      {formatConnectionStatus(status)}
     </span>
   );
 }
@@ -138,7 +150,9 @@ function DetailItem({ icon: Icon, label, value }) {
 }
 
 export default function App() {
-  const [selectedProviderCode, setSelectedProviderCode] = useState('');
+  const [selectedProviderCode, setSelectedProviderCode] = useState(
+    appConfig.defaultProviderCode
+  );
   const { vehicles, providers, connectionStatus, lastUpdatedAt, error } =
     useVehicleLocations(selectedProviderCode);
   const [searchTerm, setSearchTerm] = useState('');
@@ -176,9 +190,9 @@ export default function App() {
         <div>
           <div className="eyebrow">
             <Flame size={17} />
-            KOCAELİ BELEDİYESİ
+            {appConfig.municipalityName}
           </div>
-          <h1>Araç Takip Sistemi</h1>
+          <h1>{appConfig.appTitle}</h1>
         </div>
         <div className="live-meta">
           <label className="provider-picker">
@@ -204,7 +218,7 @@ export default function App() {
             </select>
           </label>
           <StatusBadge status={connectionStatus} />
-          <span>{lastUpdatedAt ? formatDateTime(lastUpdatedAt) : 'Waiting for update'}</span>
+          <span>{lastUpdatedAt ? formatDateTime(lastUpdatedAt) : 'Güncelleme bekleniyor'}</span>
         </div>
       </section>
 
@@ -223,8 +237,8 @@ export default function App() {
               className="show-all-button"
               type="button"
               onClick={() => setSelectedPlate(null)}
-              aria-label="Show all vehicles"
-              title="Show all vehicles"
+              aria-label="Tüm araçları göster"
+              title="Tüm araçları göster"
             >
               <LocateFixed size={18} />
             </button>
@@ -272,7 +286,7 @@ export default function App() {
           <>
             <div className="details-heading">
               <div>
-                <span>Selected vehicle</span>
+                <span>Seçili araç</span>
                 <h2>{selectedVehicle.plate}</h2>
               </div>
               <strong>{selectedVehicle.vehicleName}</strong>

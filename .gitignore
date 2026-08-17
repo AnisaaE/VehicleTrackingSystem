@@ -41,6 +41,8 @@ efbundle*
 # Local environment and secrets
 .env
 .env.*
+!.env.example
+!frontend/.env.example
 appsettings.Local.json
 appsettings.*.local.json
 secrets.json

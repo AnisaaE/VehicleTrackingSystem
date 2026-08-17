@@ -18,12 +18,19 @@ builder.Services.Configure<TrackingProviderCredentialsOptions>(
     builder.Configuration.GetSection(TrackingProviderCredentialsOptions.SectionName));
 builder.Services.AddCors(options =>
 {
+    var allowedOrigins = builder.Configuration
+        .GetSection("Cors:AllowedOrigins")
+        .Get<string[]>()
+        ?? [];
+
+    if (allowedOrigins.Length == 0)
+    {
+        throw new InvalidOperationException(
+            "Cors:AllowedOrigins must contain at least one frontend origin.");
+    }
+
     options.AddPolicy("Frontend", policy =>
-        policy.WithOrigins(
-                "http://localhost:5173",
-                "https://localhost:5173",
-                "http://127.0.0.1:5173",
-                "https://127.0.0.1:5173")
+        policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
             .AllowAnyMethod()
             .AllowCredentials());
