@@ -14,6 +14,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from './config';
 import { useVehicleLocations } from './useVehicleLocations';
+import { MapsPage } from './pages/MapsPage';
 
 const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -149,7 +150,7 @@ function DetailItem({ icon: Icon, label, value }) {
   );
 }
 
-export default function App() {
+function LiveTrackingPage() {
   const [selectedProviderCode, setSelectedProviderCode] = useState(
     appConfig.defaultProviderCode
   );
@@ -318,5 +319,31 @@ export default function App() {
         )}
       </section>
     </main>
+  );
+}
+
+export default function App() {
+  const [activePage, setActivePage] = useState('tracking');
+
+  return (
+    <div className="root-shell">
+      <nav className="main-navigation">
+        <button
+          className={activePage === 'tracking' ? 'active' : ''}
+          type="button"
+          onClick={() => setActivePage('tracking')}
+        >
+          Canli Takip
+        </button>
+        <button
+          className={activePage === 'maps' ? 'active' : ''}
+          type="button"
+          onClick={() => setActivePage('maps')}
+        >
+          Haritalar
+        </button>
+      </nav>
+      {activePage === 'tracking' ? <LiveTrackingPage /> : <MapsPage />}
+    </div>
   );
 }
