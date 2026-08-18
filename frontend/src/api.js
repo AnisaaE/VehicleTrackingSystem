@@ -24,10 +24,78 @@ export async function fetchVehicles(providerCode) {
   return response.json();
 }
 
+export async function fetchFacilities() {
+  const response = await fetch(`${API_BASE_URL}/api/facilities`);
+
+  if (!response.ok) {
+    throw new Error('Tesis verileri yuklenemedi.');
+  }
+
+  return response.json();
+}
+
+export async function createFacility(facility) {
+  const response = await fetch(`${API_BASE_URL}/api/facilities`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(facility)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Tesis kaydedilemedi.');
+  }
+
+  return response.json();
+}
+
+export async function geocodeAddress(query) {
+  const response = await fetch(`${API_BASE_URL}/api/geocode?q=${encodeURIComponent(query)}`);
+
+  if (!response.ok) {
+    throw new Error('Adres arama tamamlanamadi.');
+  }
+
+  return response.json();
+}
+
+export async function fetchRoute({ fromFacilityId, toLat, toLon, toDestinationId, vehiclePlate, providerCode }) {
+  const params = new URLSearchParams({
+    fromFacilityId: String(fromFacilityId)
+  });
+
+  if (toDestinationId) {
+    params.set('toDestinationId', String(toDestinationId));
+  } else {
+    params.set('toLat', String(toLat));
+    params.set('toLon', String(toLon));
+  }
+
+  if (vehiclePlate) {
+    params.set('vehiclePlate', vehiclePlate);
+  }
+
+  if (providerCode) {
+    params.set('providerCode', providerCode);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/api/routes?${params.toString()}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Rota alinamadi.');
+  }
+
+  return response.json();
+}
+
 export function createVehicleLocationConnection(
   onVehiclesUpdated,
   onStatusChanged,
-  onReconnected
+  onReconnected,
+  onVehicleLeftFacility
 ) {
   const connection = new signalR.HubConnectionBuilder()
     .withUrl(HUB_URL, {
@@ -38,6 +106,9 @@ export function createVehicleLocationConnection(
     .build();
 
   connection.on('vehicleLocationsUpdated', onVehiclesUpdated);
+  if (onVehicleLeftFacility) {
+    connection.on('vehicleLeftFacility', onVehicleLeftFacility);
+  }
   connection.onreconnecting(() => onStatusChanged('reconnecting'));
   connection.onreconnected(async () => {
     onStatusChanged('connected');
