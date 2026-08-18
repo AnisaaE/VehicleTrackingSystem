@@ -1,0 +1,72 @@
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using VehicleTrackingSystem.DTOs.Errors;
+using VehicleTrackingSystem.DTOs.Facilities;
+using VehicleTrackingSystem.Interfaces;
+
+namespace VehicleTrackingSystem.Controllers;
+
+[ApiController]
+[Route("api/facilities")]
+public sealed class FacilitiesController : ControllerBase
+{
+    private readonly IFacilityService _facilityService;
+
+    public FacilitiesController(IFacilityService facilityService)
+    {
+        _facilityService = facilityService;
+    }
+
+    [HttpGet]
+    [ProducesResponseType(typeof(IReadOnlyList<FacilityDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<FacilityDto>>> GetAll(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _facilityService.GetAllAsync(cancellationToken));
+    }
+
+    [HttpGet("{id:int}")]
+    [ProducesResponseType(typeof(FacilityDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<FacilityDto>> GetById(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var facility = await _facilityService.GetByIdAsync(id, cancellationToken);
+
+        if (facility is null)
+        {
+            return NotFound(new ErrorResponse($"Facility with id '{id}' was not found."));
+        }
+
+        return Ok(facility);
+    }
+
+    [HttpPost]
+    [ProducesResponseType(typeof(FacilityDto), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<ActionResult<FacilityDto>> Create(
+        CreateFacilityRequest request,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var facility = await _facilityService.CreateAsync(request, cancellationToken);
+            return CreatedAtAction(nameof(GetById), new { id = facility.Id }, facility);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new ErrorResponse(exception.Message));
+        }
+        catch (DbUpdateException)
+        {
+            return Conflict(new ErrorResponse(
+                $"Facility with code '{request.Code}' already exists or cannot be saved."));
+        }
+        catch (Exception exception)
+        {
+            return Conflict(new ErrorResponse(exception.Message));
+        }
+    }
+}
