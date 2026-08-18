@@ -11,15 +11,18 @@ public sealed class VehicleLocationBroadcastService : BackgroundService
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IHubContext<VehicleLocationHub> _hubContext;
+    private readonly IFacilityGeofenceService _facilityGeofenceService;
     private readonly ILogger<VehicleLocationBroadcastService> _logger;
 
     public VehicleLocationBroadcastService(
         IServiceScopeFactory scopeFactory,
         IHubContext<VehicleLocationHub> hubContext,
+        IFacilityGeofenceService facilityGeofenceService,
         ILogger<VehicleLocationBroadcastService> logger)
     {
         _scopeFactory = scopeFactory;
         _hubContext = hubContext;
+        _facilityGeofenceService = facilityGeofenceService;
         _logger = logger;
     }
 
@@ -77,6 +80,21 @@ public sealed class VehicleLocationBroadcastService : BackgroundService
                     "vehicleLocationsUpdated",
                     allVehicles,
                     cancellationToken);
+
+            var departures = await _facilityGeofenceService.DetectDeparturesAsync(
+                allVehicles,
+                cancellationToken);
+
+            foreach (var departure in departures)
+            {
+                await _hubContext.Clients
+                    .Group(VehicleLocationHub.GetAllProvidersGroupName())
+                    .SendAsync("vehicleLeftFacility", departure, cancellationToken);
+
+                await _hubContext.Clients
+                    .Group(VehicleLocationHub.GetProviderGroupName(departure.Provider))
+                    .SendAsync("vehicleLeftFacility", departure, cancellationToken);
+            }
         }
         catch (OperationCanceledException)
         {
