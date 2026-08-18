@@ -16,15 +16,23 @@ import { appConfig } from './config';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
 
-const markerIcon = new L.Icon({
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+function createVehicleIcon(iconUrl) {
+  return new L.Icon({
+    iconUrl,
+    iconSize: [46, 46],
+    iconAnchor: [23, 23],
+    popupAnchor: [0, -24]
+  });
+}
+
+const vehicleIcons = {
+  AMBULANCE: createVehicleIcon('/markers/ambulance.png'),
+  FIRE_TRUCK: createVehicleIcon('/markers/fire-truck.png'),
+  GARBAGE_TRUCK: createVehicleIcon('/markers/garbage-truck.png'),
+  WORK_MACHINE: createVehicleIcon('/markers/work-machine.png'),
+  SWEEPER: createVehicleIcon('/markers/sweeper.png'),
+  DEFAULT: createVehicleIcon('/markers/default-vihacle.png')
+};
 
 function formatDateTime(value) {
   if (!value) {
@@ -43,6 +51,18 @@ function normalizePlate(value) {
 
 function getVehicleKey(vehicle) {
   return `${vehicle.provider}:${vehicle.plate}`;
+}
+
+function normalizeVehicleType(value) {
+  return value
+    .trim()
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase();
+}
+
+function getVehicleIcon(vehicle) {
+  return vehicleIcons[normalizeVehicleType(vehicle.vehicleType)] ?? vehicleIcons.DEFAULT;
 }
 
 function formatConnectionStatus(status) {
@@ -111,7 +131,7 @@ function VehicleMap({ vehicles, selectedVehicle, onSelectVehicle }) {
         <Marker
           key={getVehicleKey(vehicle)}
           position={[vehicle.latitude, vehicle.longitude]}
-          icon={markerIcon}
+          icon={getVehicleIcon(vehicle)}
           eventHandlers={{
             click: () => onSelectVehicle(getVehicleKey(vehicle))
           }}
