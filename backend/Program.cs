@@ -9,13 +9,20 @@ using VehicleTrackingSystem.TrackingProviders;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
 builder.Services.Configure<TrackingProviderCredentialsOptions>(
     builder.Configuration.GetSection(TrackingProviderCredentialsOptions.SectionName));
+builder.Services.Configure<GeocodingOptions>(
+    builder.Configuration.GetSection(GeocodingOptions.SectionName));
+builder.Services.Configure<RoutingOptions>(
+    builder.Configuration.GetSection(RoutingOptions.SectionName));
 builder.Services.AddCors(options =>
 {
     var allowedOrigins = builder.Configuration
@@ -69,6 +76,11 @@ builder.Services.AddScoped<IVehicleLocationService, VehicleLocationService>();
 builder.Services.AddScoped<IVehicleLocationMapper, VehicleLocationMapper>();
 builder.Services.AddScoped<IVehicleTrackingProviderResolver, VehicleTrackingProviderResolver>();
 builder.Services.AddScoped<ITrackingProviderCredentialService, TrackingProviderCredentialService>();
+builder.Services.AddScoped<IFacilityService, FacilityService>();
+builder.Services.AddScoped<IDestinationService, DestinationService>();
+builder.Services.AddSingleton<IFacilityGeofenceService, FacilityGeofenceService>();
+builder.Services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
+builder.Services.AddHttpClient<IRoutingService, OsrmRoutingService>();
 builder.Services.AddHostedService<VehicleLocationBroadcastService>();
 
 builder.Services.AddScoped<IVehicleTrackingProvider, ArventoTrackingProvider>();
