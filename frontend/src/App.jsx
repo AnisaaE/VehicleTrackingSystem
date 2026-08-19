@@ -34,6 +34,14 @@ const vehicleIcons = {
   DEFAULT: createVehicleIcon('/markers/default-vihacle.png')
 };
 
+const vehicleTypeLabels = {
+  AMBULANCE: 'Ambulans',
+  FIRE_TRUCK: 'İtfaiye Aracı',
+  GARBAGE_TRUCK: 'Çöp Kamyonu',
+  WORK_MACHINE: 'İş Makinesi',
+  SWEEPER: 'Süpürge Aracı'
+};
+
 function formatDateTime(value) {
   if (!value) {
     return '-';
@@ -55,14 +63,21 @@ function getVehicleKey(vehicle) {
 
 function normalizeVehicleType(value) {
   return value
+    ?.toString()
     .trim()
     .replace(/([a-z])([A-Z])/g, '$1_$2')
     .replace(/[\s-]+/g, '_')
-    .toUpperCase();
+    .toUpperCase() || 'DEFAULT';
 }
 
 function getVehicleIcon(vehicle) {
   return vehicleIcons[normalizeVehicleType(vehicle.vehicleType)] ?? vehicleIcons.DEFAULT;
+}
+
+function formatVehicleTypeLabel(value) {
+  const normalizedType = normalizeVehicleType(value);
+
+  return vehicleTypeLabels[normalizedType] ?? value ?? 'Diğer';
 }
 
 function formatConnectionStatus(status) {
@@ -178,22 +193,50 @@ function LiveTrackingPage() {
     useVehicleLocations(selectedProviderCode);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlate, setSelectedPlate] = useState(null);
+  const [hiddenVehicleTypes, setHiddenVehicleTypes] = useState([]);
+
+  const availableVehicleTypes = useMemo(() => {
+    const typesByCode = new Map();
+
+    vehicles.forEach(vehicle => {
+      const code = normalizeVehicleType(vehicle.vehicleType);
+
+      if (!typesByCode.has(code)) {
+        typesByCode.set(code, {
+          code,
+          label: formatVehicleTypeLabel(vehicle.vehicleType),
+          count: 0
+        });
+      }
+
+      typesByCode.get(code).count += 1;
+    });
+
+    return Array.from(typesByCode.values()).sort((first, second) =>
+      first.label.localeCompare(second.label, 'tr')
+    );
+  }, [vehicles]);
+
+  const toggleVehicleType = typeCode => {
+    setHiddenVehicleTypes(currentHiddenTypes =>
+      currentHiddenTypes.includes(typeCode)
+        ? currentHiddenTypes.filter(currentTypeCode => currentTypeCode !== typeCode)
+        : [...currentHiddenTypes, typeCode]
+    );
+  };
 
   const filteredVehicles = useMemo(() => {
     const normalizedSearch = normalizePlate(searchTerm);
 
-    if (!normalizedSearch) {
-      return vehicles;
-    }
-
     return vehicles.filter(vehicle =>
-      normalizePlate(vehicle.plate).includes(normalizedSearch)
+      !hiddenVehicleTypes.includes(normalizeVehicleType(vehicle.vehicleType)) &&
+      (!normalizedSearch || normalizePlate(vehicle.plate).includes(normalizedSearch))
     );
-  }, [vehicles, searchTerm]);
+  }, [hiddenVehicleTypes, vehicles, searchTerm]);
 
   const selectedVehicle = useMemo(
-    () => vehicles.find(vehicle => getVehicleKey(vehicle) === selectedPlate) ?? null,
-    [selectedPlate, vehicles]
+    () => filteredVehicles.find(vehicle => getVehicleKey(vehicle) === selectedPlate) ?? null,
+    [filteredVehicles, selectedPlate]
   );
 
   const selectedProviderName = selectedProviderCode
@@ -203,7 +246,17 @@ function LiveTrackingPage() {
   useEffect(() => {
     setSelectedPlate(null);
     setSearchTerm('');
+    setHiddenVehicleTypes([]);
   }, [selectedProviderCode]);
+
+  useEffect(() => {
+    if (
+      selectedPlate &&
+      !filteredVehicles.some(vehicle => getVehicleKey(vehicle) === selectedPlate)
+    ) {
+      setSelectedPlate(null);
+    }
+  }, [filteredVehicles, selectedPlate]);
 
   return (
     <main className="app-shell">
@@ -265,11 +318,49 @@ function LiveTrackingPage() {
             </button>
           </div>
 
+          {availableVehicleTypes.length > 0 && (
+            <div className="vehicle-type-filter">
+              <div className="vehicle-type-filter-heading">
+                <span>Araç türü</span>
+                <button
+                  type="button"
+                  onClick={() => setHiddenVehicleTypes([])}
+                  disabled={hiddenVehicleTypes.length === 0}
+                >
+                  Tümü
+                </button>
+              </div>
+              <div className="vehicle-type-options">
+                {availableVehicleTypes.map(vehicleType => {
+                  const isVisible = !hiddenVehicleTypes.includes(vehicleType.code);
+
+                  return (
+                    <button
+                      key={vehicleType.code}
+                      className={isVisible ? 'active' : ''}
+                      type="button"
+                      onClick={() => toggleVehicleType(vehicleType.code)}
+                      aria-pressed={isVisible}
+                    >
+                      <CarFront size={16} />
+                      <span>{vehicleType.label}</span>
+                      <strong>{vehicleType.count}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="vehicle-list">
             {filteredVehicles.length === 0 ? (
               <div className="no-location-state">
                 <strong>{selectedProviderName}</strong>
-                <span>Bu sağlayıcı için kullanılabilir araç konumu yok.</span>
+                <span>
+                  {vehicles.length === 0
+                    ? 'Bu sağlayıcı için kullanılabilir araç konumu yok.'
+                    : 'Seçili filtrelere uygun araç yok.'}
+                </span>
               </div>
             ) : (
               filteredVehicles.map(vehicle => (
@@ -295,7 +386,7 @@ function LiveTrackingPage() {
 
         <section className="map-panel">
           <VehicleMap
-            vehicles={vehicles}
+            vehicles={filteredVehicles}
             selectedVehicle={selectedVehicle}
             onSelectVehicle={setSelectedPlate}
           />
