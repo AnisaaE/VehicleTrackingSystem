@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.Extensions.Options;
 using VehicleTrackingSystem.DTOs.Routing;
@@ -17,6 +18,9 @@ public sealed class OsrmRoutingService : IRoutingService
         _httpClient = httpClient;
         _options = options.Value;
         _httpClient.BaseAddress = new Uri(_options.BaseUrl.TrimEnd('/') + "/");
+        _httpClient.DefaultRequestHeaders.UserAgent.Clear();
+        _httpClient.DefaultRequestHeaders.UserAgent.Add(
+            ProductInfoHeaderValue.Parse("VehicleTrackingSystem/1.0"));
     }
 
     public async Task<RouteResponseDto> GetRouteAsync(
@@ -32,7 +36,15 @@ public sealed class OsrmRoutingService : IRoutingService
             $"route/v1/{Uri.EscapeDataString(_options.Profile)}/{coordinates}?overview=full&geometries=geojson&steps=true";
 
         using var response = await _httpClient.GetAsync(url, cancellationToken);
-        response.EnsureSuccessStatusCode();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorBody = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new HttpRequestException(
+                $"OSRM returned {(int)response.StatusCode} {response.ReasonPhrase}: {errorBody}",
+                null,
+                response.StatusCode);
+        }
 
         using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
         using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
