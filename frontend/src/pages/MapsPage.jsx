@@ -147,6 +147,29 @@ function getFacilityIcon(facilityType) {
   return Building2;
 }
 
+function getPolygonCenterPoint(geometry) {
+  if (geometry.type !== 'Polygon' || !geometry.coordinates?.[0]?.length) {
+    return null;
+  }
+
+  const ring = geometry.coordinates[0];
+  const totals = ring.reduce(
+    (current, coordinate) => ({
+      longitude: current.longitude + coordinate[0],
+      latitude: current.latitude + coordinate[1]
+    }),
+    { longitude: 0, latitude: 0 }
+  );
+
+  return {
+    type: 'Point',
+    coordinates: [
+      totals.longitude / ring.length,
+      totals.latitude / ring.length
+    ]
+  };
+}
+
 function formatDistance(value) {
   if (!Number.isFinite(value)) {
     return '-';
@@ -407,6 +430,7 @@ export function MapsPage({ onNavigate }) {
 
     if (geometry.type === 'Polygon') {
       setDraftBoundary(geometry);
+      setDraftLocation(currentLocation => currentLocation ?? getPolygonCenterPoint(geometry));
     }
   }, []);
 

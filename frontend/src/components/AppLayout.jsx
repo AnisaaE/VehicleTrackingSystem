@@ -77,7 +77,7 @@ export function AppLayout({
 
         <div className="sidebar-brand">
           <Building2 size={21} />
-          <strong>BELEDİYE</strong>
+          <strong>KOCAELİ BELEDİYESİ</strong>
         </div>
       </aside>
 
@@ -91,10 +91,10 @@ export function AppLayout({
           <div className="header-actions">
             <StatusPill status={connectionStatus} label={connectionLabel} />
             <time>{formatHeaderTime(lastUpdatedAt)}</time>
-            <button type="button" aria-label="Bildirimler">
+            {/* <button type="button" aria-label="Bildirimler">
               <Bell size={19} />
               <span className="notification-dot">3</span>
-            </button>
+            </button> */}
             <button type="button" aria-label="Profil">
               <UserCircle size={25} />
             </button>
