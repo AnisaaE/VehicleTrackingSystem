@@ -1,27 +1,28 @@
 ﻿import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CarFront,
-  Flame,
   Gauge,
   LocateFixed,
+  MapPinned,
   MapPin,
   Power,
   Search,
-  Wifi,
-  WifiOff
+  Wifi
 } from 'lucide-react';
-import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from './config';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
+import { AppLayout } from './components/AppLayout';
 
-function createVehicleIcon(iconUrl) {
+function createVehicleIcon(iconUrl, className = '') {
   return new L.Icon({
     iconUrl,
     iconSize: [46, 46],
     iconAnchor: [23, 23],
-    popupAnchor: [0, -24]
+    popupAnchor: [0, -24],
+    className
   });
 }
 
@@ -70,8 +71,14 @@ function normalizeVehicleType(value) {
     .toUpperCase() || 'DEFAULT';
 }
 
-function getVehicleIcon(vehicle) {
-  return vehicleIcons[normalizeVehicleType(vehicle.vehicleType)] ?? vehicleIcons.DEFAULT;
+function getVehicleIcon(vehicle, isSelected = false) {
+  const icon = vehicleIcons[normalizeVehicleType(vehicle.vehicleType)] ?? vehicleIcons.DEFAULT;
+
+  if (!isSelected) {
+    return icon;
+  }
+
+  return createVehicleIcon(icon.options.iconUrl, 'selected-vehicle-marker');
 }
 
 function formatVehicleTypeLabel(value) {
@@ -136,40 +143,37 @@ function VehicleMap({ vehicles, selectedVehicle, onSelectVehicle }) {
       zoom={appConfig.mapZoom}
       className="vehicle-map"
       scrollWheelZoom
+      zoomControl={false}
     >
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
+      <ZoomControl position="topright" />
       <MapFocus vehicles={vehicles} selectedVehicle={selectedVehicle} />
-      {vehicles.map(vehicle => (
-        <Marker
-          key={getVehicleKey(vehicle)}
-          position={[vehicle.latitude, vehicle.longitude]}
-          icon={getVehicleIcon(vehicle)}
-          eventHandlers={{
-            click: () => onSelectVehicle(getVehicleKey(vehicle))
-          }}
-        >
-          <Popup>
-            <strong>{vehicle.plate}</strong>
-            <span>{vehicle.speed} km/h</span>
-          </Popup>
-        </Marker>
-      ))}
+      {vehicles.map(vehicle => {
+        const vehicleKey = getVehicleKey(vehicle);
+        const isSelected = selectedVehicle && getVehicleKey(selectedVehicle) === vehicleKey;
+
+        return (
+          <Marker
+            key={vehicleKey}
+            position={[vehicle.latitude, vehicle.longitude]}
+            icon={getVehicleIcon(vehicle, isSelected)}
+            zIndexOffset={isSelected ? 1000 : 0}
+            eventHandlers={{
+              click: () => onSelectVehicle(vehicleKey)
+            }}
+          >
+            <Popup>
+              <strong>{vehicle.plate}</strong>
+              <span>{vehicle.speed} km/h</span>
+              <span>{vehicle.ignitionOn ? 'Kontak Açık' : 'Kontak Kapalı'}</span>
+            </Popup>
+          </Marker>
+        );
+      })}
     </MapContainer>
-  );
-}
-
-function StatusBadge({ status }) {
-  const isConnected = status === 'connected';
-  const Icon = isConnected ? Wifi : WifiOff;
-
-  return (
-    <span className={`status-badge ${isConnected ? 'connected' : 'disconnected'}`}>
-      <Icon size={16} />
-      {formatConnectionStatus(status)}
-    </span>
   );
 }
 
@@ -185,7 +189,7 @@ function DetailItem({ icon: Icon, label, value }) {
   );
 }
 
-function LiveTrackingPage() {
+function LiveTrackingPage({ onNavigate }) {
   const [selectedProviderCode, setSelectedProviderCode] = useState(
     appConfig.defaultProviderCode
   );
@@ -259,17 +263,26 @@ function LiveTrackingPage() {
   }, [filteredVehicles, selectedPlate]);
 
   return (
-    <main className="app-shell">
-      <section className="top-bar">
-        <div>
-          <div className="eyebrow">
-            <Flame size={17} />
-            {appConfig.municipalityName}
+    <AppLayout
+      activePage="tracking"
+      connectionLabel={formatConnectionStatus(connectionStatus)}
+      connectionStatus={connectionStatus}
+      headerIcon={MapPinned}
+      lastUpdatedAt={lastUpdatedAt}
+      onNavigate={onNavigate}
+      title="Canlı Takip"
+    >
+      <section className={`tracking-dashboard ${selectedVehicle ? 'has-details' : ''}`}>
+        <aside className="workspace-panel vehicle-panel">
+          <div className="panel-heading">
+            <div>
+              <span>{appConfig.municipalityName}</span>
+              <h2>Araçlar</h2>
+            </div>
+            <strong>{filteredVehicles.length}</strong>
           </div>
-          <h1>{appConfig.appTitle}</h1>
-        </div>
-        <div className="live-meta">
-          <label className="provider-picker">
+
+          <label className="field-stack panel-field">
             <span>Sağlayıcı</span>
             <select
               value={selectedProviderCode}
@@ -291,24 +304,16 @@ function LiveTrackingPage() {
               )}
             </select>
           </label>
-          <StatusBadge status={connectionStatus} />
-          <span>{lastUpdatedAt ? formatDateTime(lastUpdatedAt) : 'Güncelleme bekleniyor'}</span>
-        </div>
-      </section>
 
-      {error && <div className="error-banner">{error}</div>}
-
-      <section className="content-grid">
-        <aside className="vehicle-panel">
-          <div className="search-box">
+          <div className="search-box panel-search">
             <Search size={18} />
             <input
               value={searchTerm}
               onChange={event => setSearchTerm(event.target.value)}
-              placeholder="Plakaya göre ara"
+              placeholder="Plaka ara..."
             />
             <button
-              className="show-all-button"
+              className="icon-button"
               type="button"
               onClick={() => setSelectedPlate(null)}
               aria-label="Tüm araçları göster"
@@ -319,8 +324,8 @@ function LiveTrackingPage() {
           </div>
 
           {availableVehicleTypes.length > 0 && (
-            <div className="vehicle-type-filter">
-              <div className="vehicle-type-filter-heading">
+            <div className="type-filter">
+              <div className="type-filter-heading">
                 <span>Araç türü</span>
                 <button
                   type="button"
@@ -330,7 +335,7 @@ function LiveTrackingPage() {
                   Tümü
                 </button>
               </div>
-              <div className="vehicle-type-options">
+              <div className="type-filter-options">
                 {availableVehicleTypes.map(vehicleType => {
                   const isVisible = !hiddenVehicleTypes.includes(vehicleType.code);
 
@@ -352,9 +357,14 @@ function LiveTrackingPage() {
             </div>
           )}
 
+          <div className="panel-subheading">
+            <span>{selectedProviderName}</span>
+            <strong>{filteredVehicles.length} araç</strong>
+          </div>
+
           <div className="vehicle-list">
             {filteredVehicles.length === 0 ? (
-              <div className="no-location-state">
+              <div className="empty-panel-state">
                 <strong>{selectedProviderName}</strong>
                 <span>
                   {vehicles.length === 0
@@ -370,13 +380,16 @@ function LiveTrackingPage() {
                   onClick={() => setSelectedPlate(getVehicleKey(vehicle))}
                   type="button"
                 >
+                  <CarFront size={18} />
                   <div>
                     <strong>{vehicle.plate}</strong>
                     <span>{vehicle.vehicleName}</span>
                   </div>
                   <div className="vehicle-row-meta">
-                    <span>{vehicle.speed} km/h</span>
-                    <span>{vehicle.ignitionOn ? 'Kontak Açık' : 'Kontak Kapalı'}</span>
+                    <strong>{vehicle.speed} km/h</strong>
+                    <span className={vehicle.ignitionOn ? 'status-text on' : 'status-text'}>
+                      {vehicle.ignitionOn ? 'Kontak Açık' : 'Kontak Kapalı'}
+                    </span>
                   </div>
                 </button>
               ))
@@ -384,52 +397,82 @@ function LiveTrackingPage() {
           </div>
         </aside>
 
-        <section className="map-panel">
+        <section className="map-stage tracking-map-stage">
           <VehicleMap
             vehicles={filteredVehicles}
             selectedVehicle={selectedVehicle}
             onSelectVehicle={setSelectedPlate}
           />
+          {error && (
+            <div className="system-toast error">
+              <strong>Sistem bildirimi</strong>
+              <span>{error}</span>
+            </div>
+          )}
         </section>
-      </section>
 
-      <section className="details-panel">
-        {selectedVehicle ? (
-          <>
+        {selectedVehicle && (
+          <aside className="workspace-panel details-panel">
             <div className="details-heading">
               <div>
-                <span>Seçili araç</span>
+                <span>Araç Detayları</span>
                 <h2>{selectedVehicle.plate}</h2>
               </div>
-              <strong>{selectedVehicle.vehicleName}</strong>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => setSelectedPlate(null)}
+                aria-label="Detayları kapat"
+                title="Detayları kapat"
+              >
+                ×
+              </button>
             </div>
-            <div className="details-grid">
-              <DetailItem icon={CarFront} label="Araç Tipi" value={selectedVehicle.vehicleType} />
-              <DetailItem icon={MapPin} label="Sağlayıcı" value={selectedVehicle.provider} />
-              <DetailItem icon={Gauge} label="Hız" value={`${selectedVehicle.speed} km/h`} />
-              <DetailItem
-                icon={Power}
-                label="Kontak Durumu"
-                value={selectedVehicle.ignitionOn ? 'Açık' : 'Kapalı'}
-              />
-              <DetailItem icon={MapPin} label="Enlem" value={selectedVehicle.latitude} />
-              <DetailItem icon={MapPin} label="Boylam" value={selectedVehicle.longitude} />
-              <DetailItem
-                icon={Wifi}
-                label="Son Konum Tarihi"
-                value={formatDateTime(selectedVehicle.lastLocationTime)}
-              />
+
+            <div className="selected-vehicle-card">
+              <CarFront size={24} />
+              <div>
+                <strong>{selectedVehicle.vehicleName}</strong>
+                <span>{formatVehicleTypeLabel(selectedVehicle.vehicleType)}</span>
+              </div>
             </div>
-          </>
-        ) : (
-          <div className="empty-state">
-            {vehicles.length === 0
-              ? `${selectedProviderName} için kullanılabilir konum yok`
-              : 'Detayları görmek için bir araç seçin'}
-          </div>
+
+            <section className="detail-section">
+              <h3>Canlı Durum</h3>
+              <div className="details-grid">
+                <DetailItem icon={Gauge} label="Hız" value={`${selectedVehicle.speed} km/h`} />
+                <DetailItem
+                  icon={Power}
+                  label="Kontak"
+                  value={selectedVehicle.ignitionOn ? 'Açık' : 'Kapalı'}
+                />
+                <DetailItem
+                  icon={Wifi}
+                  label="Son Konum"
+                  value={formatDateTime(selectedVehicle.lastLocationTime)}
+                />
+              </div>
+            </section>
+
+            <section className="detail-section">
+              <h3>Konum</h3>
+              <div className="details-grid">
+                <DetailItem icon={MapPin} label="Enlem" value={selectedVehicle.latitude} />
+                <DetailItem icon={MapPin} label="Boylam" value={selectedVehicle.longitude} />
+              </div>
+            </section>
+
+            <section className="detail-section">
+              <h3>Sağlayıcı</h3>
+              <div className="details-grid">
+                <DetailItem icon={MapPin} label="Takip Sağlayıcısı" value={selectedVehicle.provider} />
+                <DetailItem icon={CarFront} label="Araç Tipi" value={formatVehicleTypeLabel(selectedVehicle.vehicleType)} />
+              </div>
+            </section>
+          </aside>
         )}
       </section>
-    </main>
+    </AppLayout>
   );
 }
 
@@ -438,23 +481,9 @@ export default function App() {
 
   return (
     <div className="root-shell">
-      <nav className="main-navigation">
-        <button
-          className={activePage === 'tracking' ? 'active' : ''}
-          type="button"
-          onClick={() => setActivePage('tracking')}
-        >
-          Canlı Takip
-        </button>
-        <button
-          className={activePage === 'maps' ? 'active' : ''}
-          type="button"
-          onClick={() => setActivePage('maps')}
-        >
-          Haritalar
-        </button>
-      </nav>
-      {activePage === 'tracking' ? <LiveTrackingPage /> : <MapsPage />}
+      {activePage === 'tracking'
+        ? <LiveTrackingPage onNavigate={setActivePage} />
+        : <MapsPage onNavigate={setActivePage} />}
     </div>
   );
 }

@@ -1,7 +1,22 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { Building2, ChevronDown, MapPin, Navigation, Route, Save, Search } from 'lucide-react';
+import {
+  Building2,
+  Construction,
+  Cross,
+  Edit3,
+  Flame,
+  Layers,
+  Map as MapIcon,
+  MapPin,
+  Navigation,
+  Route,
+  Save,
+  Search,
+  Trash2,
+  Warehouse
+} from 'lucide-react';
 import { GeoJSON, MapContainer, Marker, Polyline, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
@@ -12,6 +27,7 @@ import {
   fetchRoute,
   geocodeAddress
 } from '../api';
+import { AppLayout } from '../components/AppLayout';
 
 const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -24,10 +40,10 @@ const markerIcon = new L.Icon({
 });
 
 const facilityBoundaryStyles = {
-  FIRE_STATION: { color: '#a33226', weight: 2, fillOpacity: 0.12 },
-  HOSPITAL: { color: '#1769aa', weight: 2, fillOpacity: 0.12 },
-  GARAGE: { color: '#7a4d13', weight: 2, fillOpacity: 0.12 },
-  DEPOT: { color: '#52615a', weight: 2, fillOpacity: 0.12 }
+  FIRE_STATION: { color: '#ef4444', weight: 2, fillOpacity: 0.12 },
+  HOSPITAL: { color: '#2563eb', weight: 2, fillOpacity: 0.12 },
+  GARAGE: { color: '#1d4ed8', weight: 2, fillOpacity: 0.12 },
+  DEPOT: { color: '#f97316', weight: 2, fillOpacity: 0.12 }
 };
 
 const facilityTypeLabels = {
@@ -35,6 +51,14 @@ const facilityTypeLabels = {
   HOSPITAL: 'Hastane',
   GARAGE: 'Garaj',
   DEPOT: 'Depo'
+};
+
+const facilityMarkerColors = {
+  FIRE_STATION: '#ef4444',
+  HOSPITAL: '#2563eb',
+  GARAGE: '#1d4ed8',
+  DEPOT: '#f97316',
+  UNKNOWN: '#64748b'
 };
 
 function parseGeometry(value) {
@@ -65,10 +89,6 @@ function routeToPositions(route) {
   return geometry.coordinates.map(coordinate => [coordinate[1], coordinate[0]]);
 }
 
-function getFacilityBoundaryStyle(facilityType) {
-  return facilityBoundaryStyles[facilityType] ?? facilityBoundaryStyles.DEPOT;
-}
-
 function normalizeFacilityType(value) {
   return value
     ?.toString()
@@ -82,6 +102,49 @@ function formatFacilityTypeLabel(value) {
   const normalizedType = normalizeFacilityType(value);
 
   return facilityTypeLabels[normalizedType] ?? value ?? 'Diğer';
+}
+
+function getFacilityBoundaryStyle(facilityType) {
+  return facilityBoundaryStyles[normalizeFacilityType(facilityType)] ?? facilityBoundaryStyles.DEPOT;
+}
+
+function getFacilityColor(facilityType) {
+  return facilityMarkerColors[normalizeFacilityType(facilityType)] ?? facilityMarkerColors.UNKNOWN;
+}
+
+function createFacilityMarkerIcon(facility, isSelected) {
+  const normalizedType = normalizeFacilityType(facility.facilityType);
+  const color = getFacilityColor(facility.facilityType);
+
+  return L.divIcon({
+    className: `facility-map-marker ${isSelected ? 'selected' : ''}`,
+    html: `<span style="--marker-color:${color}">${normalizedType === 'HOSPITAL' ? '+' : ''}</span>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -16]
+  });
+}
+
+function getFacilityIcon(facilityType) {
+  const normalizedType = normalizeFacilityType(facilityType);
+
+  if (normalizedType === 'FIRE_STATION') {
+    return Flame;
+  }
+
+  if (normalizedType === 'HOSPITAL') {
+    return Cross;
+  }
+
+  if (normalizedType === 'GARAGE') {
+    return Warehouse;
+  }
+
+  if (normalizedType === 'DEPOT') {
+    return Construction;
+  }
+
+  return Building2;
 }
 
 function formatDistance(value) {
@@ -134,6 +197,35 @@ function DrawingTools({ onGeometryCreated }) {
   return null;
 }
 
+function MapCommandToolbar({ isPickMode }) {
+  const map = useMap();
+
+  return (
+    <div className="map-command-toolbar">
+      <button type="button" className={isPickMode ? 'active' : ''} disabled>
+        <MapPin size={15} />
+        Seç
+      </button>
+      <button type="button" onClick={() => map.pm.enableDraw('Marker')}>
+        <MapPin size={15} />
+        Nokta Ekle
+      </button>
+      <button type="button" onClick={() => map.pm.enableDraw('Polygon')}>
+        <Layers size={15} />
+        Alan Çiz
+      </button>
+      <button type="button" onClick={() => map.pm.toggleGlobalEditMode()}>
+        <Edit3 size={15} />
+        Düzenle
+      </button>
+      <button type="button" onClick={() => map.pm.toggleGlobalRemovalMode()}>
+        <Trash2 size={15} />
+        Sil
+      </button>
+    </div>
+  );
+}
+
 function MapClickTarget({ enabled, onTargetSelected }) {
   useMapEvents({
     click: event => {
@@ -150,14 +242,15 @@ function MapClickTarget({ enabled, onTargetSelected }) {
   return null;
 }
 
-export function MapsPage() {
+export function MapsPage({ onNavigate }) {
   const [facilities, setFacilities] = useState([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
+  const [facilitySearchTerm, setFacilitySearchTerm] = useState('');
   const [addressQuery, setAddressQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [target, setTarget] = useState(null);
   const [route, setRoute] = useState(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(true);
+  const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [isPickMode, setIsPickMode] = useState(false);
   const [draftName, setDraftName] = useState('');
   const [draftCode, setDraftCode] = useState('');
@@ -167,6 +260,7 @@ export function MapsPage() {
   const [hiddenFacilityTypes, setHiddenFacilityTypes] = useState([]);
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
   const targetRef = useRef(null);
 
   const availableFacilityTypes = useMemo(() => {
@@ -191,12 +285,19 @@ export function MapsPage() {
     );
   }, [facilities]);
 
-  const visibleFacilities = useMemo(
-    () => facilities.filter(facility =>
-      !hiddenFacilityTypes.includes(normalizeFacilityType(facility.facilityType))
-    ),
-    [facilities, hiddenFacilityTypes]
-  );
+  const visibleFacilities = useMemo(() => {
+    const normalizedSearch = facilitySearchTerm.trim().toLocaleLowerCase('tr-TR');
+
+    return facilities.filter(facility =>
+      !hiddenFacilityTypes.includes(normalizeFacilityType(facility.facilityType)) &&
+      (
+        !normalizedSearch ||
+        facility.name?.toLocaleLowerCase('tr-TR').includes(normalizedSearch) ||
+        facility.code?.toLocaleLowerCase('tr-TR').includes(normalizedSearch) ||
+        formatFacilityTypeLabel(facility.facilityType).toLocaleLowerCase('tr-TR').includes(normalizedSearch)
+      )
+    );
+  }, [facilities, facilitySearchTerm, hiddenFacilityTypes]);
 
   const selectedFacility = useMemo(
     () => visibleFacilities.find(facility => facility.id === Number(selectedFacilityId)) ?? visibleFacilities[0] ?? null,
@@ -258,7 +359,7 @@ export function MapsPage() {
   useEffect(() => {
     const connection = createVehicleLocationConnection(
       () => {},
-      () => {},
+      setConnectionStatus,
       nextConnection => nextConnection.invoke('SubscribeToAllProviders'),
       async departure => {
         setNotice(`${departure.plate} ${departure.facilityName} tesisinden çıktı.`);
@@ -284,8 +385,14 @@ export function MapsPage() {
     );
 
     connection.start()
-      .then(() => connection.invoke('SubscribeToAllProviders'))
-      .catch(nextError => setError(nextError.message));
+      .then(() => {
+        setConnectionStatus('connected');
+        return connection.invoke('SubscribeToAllProviders');
+      })
+      .catch(nextError => {
+        setConnectionStatus('disconnected');
+        setError(nextError.message);
+      });
 
     return () => {
       connection.stop();
@@ -352,63 +459,48 @@ export function MapsPage() {
     }
   };
 
+  const handleAddressSearch = () => {
+    if (addressQuery.trim().length < 3) {
+      return;
+    }
+
+    geocodeAddress(addressQuery)
+      .then(setSuggestions)
+      .catch(nextError => setError(nextError.message));
+  };
+
   return (
-    <section className="maps-workspace">
-      <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom zoomControl={false}>
-        <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <ZoomControl position="topright" />
-        <DrawingTools onGeometryCreated={handleGeometryCreated} />
-        <MapClickTarget enabled={isPickMode} onTargetSelected={nextTarget => {
-          setTarget(nextTarget);
-          setIsPickMode(false);
-        }} />
-
-        {visibleFacilities.map(facility => {
-          const position = pointToLatLng(facility.location);
-          const boundary = parseGeometry(facility.boundary);
-
-          return (
-            <Fragment key={facility.id}>
-              {boundary && <GeoJSON data={boundary} style={getFacilityBoundaryStyle(facility.facilityType)} />}
-              {position && <Marker position={position} icon={markerIcon} />}
-            </Fragment>
-          );
-        })}
-
-        {target && <Marker position={[target.latitude, target.longitude]} icon={markerIcon} />}
-        {routePositions.length > 0 && <Polyline positions={routePositions} pathOptions={{ color: '#17623a', weight: 5 }} />}
-      </MapContainer>
-
-      <aside className={`route-drawer ${isDrawerOpen ? 'open' : 'closed'}`}>
-        <button className="drawer-toggle" type="button" onClick={() => setIsDrawerOpen(value => !value)}>
-          <ChevronDown size={20} />
-        </button>
-
-        <div className="drawer-content">
-          <div className="drawer-heading">
+    <AppLayout
+      activePage="maps"
+      connectionStatus={connectionStatus}
+      headerIcon={MapIcon}
+      onNavigate={onNavigate}
+      title="Haritalar"
+    >
+      <section className="maps-dashboard">
+        <aside className="workspace-panel facilities-panel">
+          <div className="panel-heading">
             <div>
               <span>Haritalar</span>
-              <h2>Tesis ve yol tarifi</h2>
+              <h2>Tesisler</h2>
             </div>
-            <Route size={24} />
+            <button className="primary-mini-button" type="button" onClick={() => setIsEditorOpen(value => !value)}>
+              + Yeni Tesis
+            </button>
           </div>
 
-          {notice && <div className="notice-banner">{notice}</div>}
-          {error && <div className="error-banner">{error}</div>}
-
-          <label className="field-stack">
-            <span>Tesis</span>
-            <select value={selectedFacility?.id ?? ''} onChange={event => setSelectedFacilityId(event.target.value)}>
-              {visibleFacilities.length === 0 && <option value="">Görünen tesis yok</option>}
-              {visibleFacilities.map(facility => (
-                <option key={facility.id} value={facility.id}>{facility.name}</option>
-              ))}
-            </select>
-          </label>
+          <div className="search-box panel-search">
+            <Search size={17} />
+            <input
+              value={facilitySearchTerm}
+              onChange={event => setFacilitySearchTerm(event.target.value)}
+              placeholder="Tesis ara..."
+            />
+          </div>
 
           {availableFacilityTypes.length > 0 && (
-            <div className="facility-type-filter">
-              <div className="facility-type-filter-heading">
+            <div className="type-filter compact">
+              <div className="type-filter-heading">
                 <span>Tesis türü</span>
                 <button
                   type="button"
@@ -418,9 +510,10 @@ export function MapsPage() {
                   Tümü
                 </button>
               </div>
-              <div className="facility-type-options">
+              <div className="type-filter-options">
                 {availableFacilityTypes.map(facilityType => {
                   const isVisible = !hiddenFacilityTypes.includes(facilityType.code);
+                  const Icon = getFacilityIcon(facilityType.code);
 
                   return (
                     <button
@@ -430,7 +523,7 @@ export function MapsPage() {
                       onClick={() => toggleFacilityType(facilityType.code)}
                       aria-pressed={isVisible}
                     >
-                      <Building2 size={16} />
+                      <Icon size={16} />
                       <span>{facilityType.label}</span>
                       <strong>{facilityType.count}</strong>
                     </button>
@@ -440,11 +533,150 @@ export function MapsPage() {
             </div>
           )}
 
-          <div className="field-stack">
-            <span>Hedef adres</span>
+          <div className="facility-list">
+            {visibleFacilities.length === 0 ? (
+              <div className="empty-panel-state">
+                <strong>Tesis bulunamadı</strong>
+                <span>Seçili filtrelere uygun tesis yok.</span>
+              </div>
+            ) : (
+              visibleFacilities.map(facility => {
+                const Icon = getFacilityIcon(facility.facilityType);
+                const isSelected = selectedFacility?.id === facility.id;
+
+                return (
+                  <button
+                    key={facility.id}
+                    className={`facility-row ${isSelected ? 'selected' : ''}`}
+                    type="button"
+                    onClick={() => setSelectedFacilityId(String(facility.id))}
+                  >
+                    <span className="facility-row-icon" style={{ '--facility-color': getFacilityColor(facility.facilityType) }}>
+                      <Icon size={18} />
+                    </span>
+                    <span>
+                      <strong>{facility.name}</strong>
+                      <small>{facility.code}</small>
+                      <em>{formatFacilityTypeLabel(facility.facilityType)}</em>
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+
+          {isEditorOpen && (
+            <section className="facility-editor">
+              <div className="section-title">
+                <Building2 size={18} />
+                <strong>Yeni tesis</strong>
+              </div>
+              <input value={draftName} onChange={event => setDraftName(event.target.value)} placeholder="Tesis adı" />
+              <input value={draftCode} onChange={event => setDraftCode(event.target.value)} placeholder="Kod" />
+              <select value={draftType} onChange={event => setDraftType(event.target.value)}>
+                <option value="FIRE_STATION">FIRE_STATION</option>
+                <option value="HOSPITAL">HOSPITAL</option>
+                <option value="GARAGE">GARAGE</option>
+                <option value="DEPOT">DEPOT</option>
+              </select>
+              <div className="draft-state">
+                <span>{draftLocation ? 'Nokta hazır' : 'Nokta bekleniyor'}</span>
+                <span>{draftBoundary ? 'Poligon hazır' : 'Poligon opsiyonel'}</span>
+              </div>
+              <button type="button" onClick={handleSaveFacility}>
+                <Save size={18} />
+                Kaydet
+              </button>
+            </section>
+          )}
+        </aside>
+
+        <section className="map-stage maps-map-stage">
+          <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom zoomControl={false}>
+            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <ZoomControl position="topright" />
+            <DrawingTools onGeometryCreated={handleGeometryCreated} />
+            <MapCommandToolbar isPickMode={isPickMode} />
+            <MapClickTarget enabled={isPickMode} onTargetSelected={nextTarget => {
+              setTarget(nextTarget);
+              setIsPickMode(false);
+            }} />
+
+            {visibleFacilities.map(facility => {
+              const position = pointToLatLng(facility.location);
+              const boundary = parseGeometry(facility.boundary);
+              const isSelected = selectedFacility?.id === facility.id;
+
+              return (
+                <Fragment key={facility.id}>
+                  {boundary && <GeoJSON data={boundary} style={getFacilityBoundaryStyle(facility.facilityType)} />}
+                  {position && (
+                    <Marker
+                      position={position}
+                      icon={createFacilityMarkerIcon(facility, isSelected)}
+                      zIndexOffset={isSelected ? 1000 : 0}
+                      eventHandlers={{ click: () => setSelectedFacilityId(String(facility.id)) }}
+                    />
+                  )}
+                </Fragment>
+              );
+            })}
+
+            {target && <Marker position={[target.latitude, target.longitude]} icon={markerIcon} />}
+            {routePositions.length > 0 && <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 5 }} />}
+          </MapContainer>
+
+          {route && (
+            <div className="route-map-badge">
+              <strong>{formatDuration(route.durationSeconds)}</strong>
+              <span>{formatDistance(route.distanceMeters)}</span>
+            </div>
+          )}
+
+          {notice && (
+            <div className="system-toast success">
+              <strong>ARAÇ ÇIKTI</strong>
+              <span>{notice}</span>
+            </div>
+          )}
+
+          {error && (
+            <div className="system-toast error">
+              <strong>Sistem bildirimi</strong>
+              <span>{error}</span>
+            </div>
+          )}
+        </section>
+
+        <aside className="workspace-panel route-panel">
+          <div className="details-heading">
+            <div>
+              <span>Yol Tarifi</span>
+              <h2>Rota</h2>
+            </div>
+            <Route size={22} />
+          </div>
+
+          <label className="field-stack panel-field">
+            <span>Çıkış Noktası</span>
+            <select value={selectedFacility?.id ?? ''} onChange={event => setSelectedFacilityId(event.target.value)}>
+              {visibleFacilities.length === 0 && <option value="">Görünen tesis yok</option>}
+              {visibleFacilities.map(facility => (
+                <option key={facility.id} value={facility.id}>{facility.name}</option>
+              ))}
+            </select>
+          </label>
+
+          <div className="field-stack panel-field">
+            <span>Hedef</span>
             <div className="inline-input">
               <Search size={18} />
               <input value={addressQuery} onChange={event => setAddressQuery(event.target.value)} placeholder="Mahalle + cadde ara" />
+              {addressQuery && (
+                <button className="plain-icon-button" type="button" onClick={() => setAddressQuery('')} aria-label="Temizle">
+                  ×
+                </button>
+              )}
             </div>
             {suggestions.length > 0 && (
               <div className="suggestion-list">
@@ -465,18 +697,29 @@ export function MapsPage() {
             )}
           </div>
 
-          <div className="drawer-actions">
-            <button type="button" onClick={() => setIsPickMode(true)}>
-              <MapPin size={18} />
-              Haritadan seç
+          <div className="segmented-actions">
+            <button type="button" onClick={handleAddressSearch}>
+              Adres Ara
             </button>
-            <button type="button" onClick={handleRoute}>
-              <Navigation size={18} />
-              Yol Tarifi Al
+            <button type="button" onClick={() => setIsPickMode(true)} className={isPickMode ? 'active' : ''}>
+              Haritadan Seç
             </button>
           </div>
 
-          {target && <div className="target-chip">{target.label}</div>}
+          {target && (
+            <div className="address-card">
+              <MapPin size={18} />
+              <div>
+                <strong>{target.label}</strong>
+                <span>{target.latitude.toFixed(5)}, {target.longitude.toFixed(5)}</span>
+              </div>
+            </div>
+          )}
+
+          <button className="primary-action-button" type="button" onClick={handleRoute}>
+            <Navigation size={18} />
+            Yol Tarifi Al
+          </button>
 
           {route && (
             <section className="route-summary">
@@ -485,44 +728,23 @@ export function MapsPage() {
                 <strong>{formatDistance(route.distanceMeters)}</strong>
               </div>
               <div>
-                <span>Süre</span>
+                <span>Tahmini Süre</span>
                 <strong>{formatDuration(route.durationSeconds)}</strong>
               </div>
-              <ol>
-                {route.steps.map((step, index) => (
-                  <li key={`${step.instruction}-${index}`}>
-                    <span>{step.instruction}</span>
-                    <small>{formatDistance(step.distanceMeters)}</small>
-                  </li>
-                ))}
-              </ol>
+              {route.steps.length > 0 && (
+                <ol>
+                  {route.steps.map((step, index) => (
+                    <li key={`${step.instruction}-${index}`}>
+                      <span>{step.instruction}</span>
+                      <small>{formatDistance(step.distanceMeters)}</small>
+                    </li>
+                  ))}
+                </ol>
+              )}
             </section>
           )}
-
-          <section className="facility-editor">
-            <div className="section-title">
-              <Building2 size={18} />
-              <strong>Yeni tesis</strong>
-            </div>
-            <input value={draftName} onChange={event => setDraftName(event.target.value)} placeholder="Tesis adı" />
-            <input value={draftCode} onChange={event => setDraftCode(event.target.value)} placeholder="Kod" />
-            <select value={draftType} onChange={event => setDraftType(event.target.value)}>
-              <option value="FIRE_STATION">FIRE_STATION</option>
-              <option value="HOSPITAL">HOSPITAL</option>
-              <option value="GARAGE">GARAGE</option>
-              <option value="DEPOT">DEPOT</option>
-            </select>
-            <div className="draft-state">
-              <span>{draftLocation ? 'Nokta hazır' : 'Nokta bekleniyor'}</span>
-              <span>{draftBoundary ? 'Poligon hazır' : 'Poligon opsiyonel'}</span>
-            </div>
-            <button type="button" onClick={handleSaveFacility}>
-              <Save size={18} />
-              Kaydet
-            </button>
-          </section>
-        </div>
-      </aside>
-    </section>
+        </aside>
+      </section>
+    </AppLayout>
   );
 }
