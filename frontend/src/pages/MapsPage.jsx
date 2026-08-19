@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
 import { Building2, ChevronDown, MapPin, Navigation, Route, Save, Search } from 'lucide-react';
-import { GeoJSON, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, Polyline, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
 import {
@@ -22,6 +22,20 @@ const markerIcon = new L.Icon({
   popupAnchor: [1, -34],
   shadowSize: [41, 41]
 });
+
+const facilityBoundaryStyles = {
+  FIRE_STATION: { color: '#a33226', weight: 2, fillOpacity: 0.12 },
+  HOSPITAL: { color: '#1769aa', weight: 2, fillOpacity: 0.12 },
+  GARAGE: { color: '#7a4d13', weight: 2, fillOpacity: 0.12 },
+  DEPOT: { color: '#52615a', weight: 2, fillOpacity: 0.12 }
+};
+
+const facilityTypeLabels = {
+  FIRE_STATION: 'İtfaiye',
+  HOSPITAL: 'Hastane',
+  GARAGE: 'Garaj',
+  DEPOT: 'Depo'
+};
 
 function parseGeometry(value) {
   if (!value) {
@@ -51,6 +65,25 @@ function routeToPositions(route) {
   return geometry.coordinates.map(coordinate => [coordinate[1], coordinate[0]]);
 }
 
+function getFacilityBoundaryStyle(facilityType) {
+  return facilityBoundaryStyles[facilityType] ?? facilityBoundaryStyles.DEPOT;
+}
+
+function normalizeFacilityType(value) {
+  return value
+    ?.toString()
+    .trim()
+    .replace(/([a-z])([A-Z])/g, '$1_$2')
+    .replace(/[\s-]+/g, '_')
+    .toUpperCase() || 'UNKNOWN';
+}
+
+function formatFacilityTypeLabel(value) {
+  const normalizedType = normalizeFacilityType(value);
+
+  return facilityTypeLabels[normalizedType] ?? value ?? 'Diğer';
+}
+
 function formatDistance(value) {
   if (!Number.isFinite(value)) {
     return '-';
@@ -73,7 +106,7 @@ function DrawingTools({ onGeometryCreated }) {
 
   useEffect(() => {
     map.pm.addControls({
-      position: 'topleft',
+      position: 'topright',
       drawCircle: false,
       drawCircleMarker: false,
       drawMarker: true,
@@ -131,15 +164,53 @@ export function MapsPage() {
   const [draftType, setDraftType] = useState('FIRE_STATION');
   const [draftLocation, setDraftLocation] = useState(null);
   const [draftBoundary, setDraftBoundary] = useState(null);
+  const [hiddenFacilityTypes, setHiddenFacilityTypes] = useState([]);
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
   const targetRef = useRef(null);
 
+  const availableFacilityTypes = useMemo(() => {
+    const typesByCode = new Map();
+
+    facilities.forEach(facility => {
+      const code = normalizeFacilityType(facility.facilityType);
+
+      if (!typesByCode.has(code)) {
+        typesByCode.set(code, {
+          code,
+          label: formatFacilityTypeLabel(facility.facilityType),
+          count: 0
+        });
+      }
+
+      typesByCode.get(code).count += 1;
+    });
+
+    return Array.from(typesByCode.values()).sort((first, second) =>
+      first.label.localeCompare(second.label, 'tr')
+    );
+  }, [facilities]);
+
+  const visibleFacilities = useMemo(
+    () => facilities.filter(facility =>
+      !hiddenFacilityTypes.includes(normalizeFacilityType(facility.facilityType))
+    ),
+    [facilities, hiddenFacilityTypes]
+  );
+
   const selectedFacility = useMemo(
-    () => facilities.find(facility => facility.id === Number(selectedFacilityId)) ?? facilities[0],
-    [facilities, selectedFacilityId]
+    () => visibleFacilities.find(facility => facility.id === Number(selectedFacilityId)) ?? visibleFacilities[0] ?? null,
+    [selectedFacilityId, visibleFacilities]
   );
   const routePositions = useMemo(() => routeToPositions(route), [route]);
+
+  const toggleFacilityType = typeCode => {
+    setHiddenFacilityTypes(currentHiddenTypes =>
+      currentHiddenTypes.includes(typeCode)
+        ? currentHiddenTypes.filter(currentTypeCode => currentTypeCode !== typeCode)
+        : [...currentHiddenTypes, typeCode]
+    );
+  };
 
   useEffect(() => {
     targetRef.current = target;
@@ -157,6 +228,17 @@ export function MapsPage() {
   useEffect(() => {
     loadFacilities().catch(nextError => setError(nextError.message));
   }, [loadFacilities]);
+
+  useEffect(() => {
+    if (visibleFacilities.length === 0) {
+      setSelectedFacilityId('');
+      return;
+    }
+
+    if (!visibleFacilities.some(facility => facility.id === Number(selectedFacilityId))) {
+      setSelectedFacilityId(String(visibleFacilities[0].id));
+    }
+  }, [selectedFacilityId, visibleFacilities]);
 
   useEffect(() => {
     if (addressQuery.trim().length < 3) {
@@ -237,6 +319,7 @@ export function MapsPage() {
       });
 
       setFacilities(current => [...current, created]);
+      setHiddenFacilityTypes(current => current.filter(type => type !== normalizeFacilityType(created.facilityType)));
       setSelectedFacilityId(String(created.id));
       setDraftName('');
       setDraftCode('');
@@ -271,21 +354,22 @@ export function MapsPage() {
 
   return (
     <section className="maps-workspace">
-      <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom>
+      <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom zoomControl={false}>
         <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <ZoomControl position="topright" />
         <DrawingTools onGeometryCreated={handleGeometryCreated} />
         <MapClickTarget enabled={isPickMode} onTargetSelected={nextTarget => {
           setTarget(nextTarget);
           setIsPickMode(false);
         }} />
 
-        {facilities.map(facility => {
+        {visibleFacilities.map(facility => {
           const position = pointToLatLng(facility.location);
           const boundary = parseGeometry(facility.boundary);
 
           return (
             <Fragment key={facility.id}>
-              {boundary && <GeoJSON data={boundary} style={{ color: '#a33226', weight: 2, fillOpacity: 0.12 }} />}
+              {boundary && <GeoJSON data={boundary} style={getFacilityBoundaryStyle(facility.facilityType)} />}
               {position && <Marker position={position} icon={markerIcon} />}
             </Fragment>
           );
@@ -315,11 +399,46 @@ export function MapsPage() {
           <label className="field-stack">
             <span>Tesis</span>
             <select value={selectedFacility?.id ?? ''} onChange={event => setSelectedFacilityId(event.target.value)}>
-              {facilities.map(facility => (
+              {visibleFacilities.length === 0 && <option value="">Görünen tesis yok</option>}
+              {visibleFacilities.map(facility => (
                 <option key={facility.id} value={facility.id}>{facility.name}</option>
               ))}
             </select>
           </label>
+
+          {availableFacilityTypes.length > 0 && (
+            <div className="facility-type-filter">
+              <div className="facility-type-filter-heading">
+                <span>Tesis türü</span>
+                <button
+                  type="button"
+                  onClick={() => setHiddenFacilityTypes([])}
+                  disabled={hiddenFacilityTypes.length === 0}
+                >
+                  Tümü
+                </button>
+              </div>
+              <div className="facility-type-options">
+                {availableFacilityTypes.map(facilityType => {
+                  const isVisible = !hiddenFacilityTypes.includes(facilityType.code);
+
+                  return (
+                    <button
+                      key={facilityType.code}
+                      className={isVisible ? 'active' : ''}
+                      type="button"
+                      onClick={() => toggleFacilityType(facilityType.code)}
+                      aria-pressed={isVisible}
+                    >
+                      <Building2 size={16} />
+                      <span>{facilityType.label}</span>
+                      <strong>{facilityType.count}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="field-stack">
             <span>Hedef adres</span>
@@ -389,6 +508,7 @@ export function MapsPage() {
             <input value={draftCode} onChange={event => setDraftCode(event.target.value)} placeholder="Kod" />
             <select value={draftType} onChange={event => setDraftType(event.target.value)}>
               <option value="FIRE_STATION">FIRE_STATION</option>
+              <option value="HOSPITAL">HOSPITAL</option>
               <option value="GARAGE">GARAGE</option>
               <option value="DEPOT">DEPOT</option>
             </select>

@@ -10,11 +10,14 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
 
     private static readonly IReadOnlyList<VehicleSeed> VehicleSeeds =
     [
-        new("34 ITF 101", "Fire Engine 1", 0),
-        new("34 ITF 102", "Fire Engine 2", 55),
-        new("34 ITF 103", "Ladder Truck", 110),
-        new("34 ITF 104", "Rescue Truck", 165),
-        new("34 ITF 105", "Water Tanker", 220)
+        new("34 ITF 101", "Fire Engine 1", "Fire Truck", 0),
+        new("34 ITF 102", "Fire Engine 2", "Fire Truck", 55),
+        new("34 ITF 103", "Ladder Truck", "Fire Truck", 110),
+        new("34 ITF 104", "Rescue Truck", "Fire Truck", 165),
+        new("34 ITF 105", "Water Tanker", "Fire Truck", 220),
+        new("34 CEV 201", "Garbage Truck 1", "Garbage Truck", 35),
+        new("34 CEV 202", "Garbage Truck 2", "Garbage Truck", 145),
+        new("34 CEV 203", "Garbage Truck 3", "Garbage Truck", 255)
     ];
 
     private readonly Lazy<IReadOnlyList<RouteData>> _routes;
@@ -56,7 +59,7 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
                 {
                     Vehicle = vehicle.Plate,
                     VehicleName = vehicle.Name,
-                    VehicleType = "Fire Truck",
+                    VehicleType = vehicle.VehicleType,
                     Lat = Math.Round((decimal)point.Latitude, 6),
                     Lon = Math.Round((decimal)point.Longitude, 6),
                     VehicleSpeed = speed,
@@ -80,6 +83,7 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
     private sealed record VehicleSeed(
         string Plate,
         string Name,
+        string VehicleType,
         int StartOffsetSeconds);
 
     private static IReadOnlyList<RouteData> LoadRoutes(string contentRootPath)
