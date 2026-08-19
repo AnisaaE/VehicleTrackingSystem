@@ -67,10 +67,10 @@ function getVehicleIcon(vehicle) {
 
 function formatConnectionStatus(status) {
   const labels = {
-    connecting: 'BaДџlanД±yor',
-    connected: 'BaДџlД±',
-    reconnecting: 'Yeniden baДџlanД±yor',
-    disconnected: 'BaДџlantД± yok'
+    connecting: 'Bağlanıyor',
+    connected: 'Bağlı',
+    reconnecting: 'Yeniden bağlanıyor',
+    disconnected: 'Bağlantı yok'
   };
 
   return labels[status] ?? status;
@@ -353,7 +353,7 @@ export default function App() {
           type="button"
           onClick={() => setActivePage('tracking')}
         >
-          Canli Takip
+          Canlı Takip
         </button>
         <button
           className={activePage === 'maps' ? 'active' : ''}

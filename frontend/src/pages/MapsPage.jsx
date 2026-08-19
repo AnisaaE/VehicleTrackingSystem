@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import '@geoman-io/leaflet-geoman-free';
 import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
-import { Building2, ChevronDown, MapPin, Navigation, Plus, Route, Save, Search } from 'lucide-react';
+import { Building2, ChevronDown, MapPin, Navigation, Route, Save, Search } from 'lucide-react';
 import { GeoJSON, MapContainer, Marker, Polyline, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
@@ -108,7 +108,7 @@ function MapClickTarget({ enabled, onTargetSelected }) {
         onTargetSelected({
           latitude: event.latlng.lat,
           longitude: event.latlng.lng,
-          label: 'Haritadan secilen nokta'
+          label: 'Haritadan seçilen nokta'
         });
       }
     }
@@ -179,7 +179,7 @@ export function MapsPage() {
       () => {},
       nextConnection => nextConnection.invoke('SubscribeToAllProviders'),
       async departure => {
-        setNotice(`${departure.plate} ${departure.facilityName} tesisinden cikti.`);
+        setNotice(`${departure.plate} ${departure.facilityName} tesisinden çıktı.`);
         setSelectedFacilityId(String(departure.facilityId));
 
         if (!targetRef.current) {
@@ -223,7 +223,7 @@ export function MapsPage() {
 
   const handleSaveFacility = async () => {
     if (!draftLocation) {
-      setError('Tesis icin once haritada bir nokta cizin.');
+      setError('Tesis için önce haritada bir nokta çizin.');
       return;
     }
 
@@ -251,7 +251,7 @@ export function MapsPage() {
 
   const handleRoute = async () => {
     if (!selectedFacility || !target) {
-      setError('Rota icin tesis ve hedef secin.');
+      setError('Rota için tesis ve hedef seçin.');
       return;
     }
 
@@ -262,7 +262,7 @@ export function MapsPage() {
         toLon: target.longitude
       });
       setRoute(nextRoute);
-      setNotice('Rota hazir.');
+      setNotice('Rota hazır.');
       setError(null);
     } catch (nextError) {
       setError(nextError.message);
@@ -349,7 +349,7 @@ export function MapsPage() {
           <div className="drawer-actions">
             <button type="button" onClick={() => setIsPickMode(true)}>
               <MapPin size={18} />
-              Haritadan sec
+              Haritadan seç
             </button>
             <button type="button" onClick={handleRoute}>
               <Navigation size={18} />
@@ -366,7 +366,7 @@ export function MapsPage() {
                 <strong>{formatDistance(route.distanceMeters)}</strong>
               </div>
               <div>
-                <span>Sure</span>
+                <span>Süre</span>
                 <strong>{formatDuration(route.durationSeconds)}</strong>
               </div>
               <ol>
@@ -385,7 +385,7 @@ export function MapsPage() {
               <Building2 size={18} />
               <strong>Yeni tesis</strong>
             </div>
-            <input value={draftName} onChange={event => setDraftName(event.target.value)} placeholder="Tesis adi" />
+            <input value={draftName} onChange={event => setDraftName(event.target.value)} placeholder="Tesis adı" />
             <input value={draftCode} onChange={event => setDraftCode(event.target.value)} placeholder="Kod" />
             <select value={draftType} onChange={event => setDraftType(event.target.value)}>
               <option value="FIRE_STATION">FIRE_STATION</option>
@@ -393,8 +393,8 @@ export function MapsPage() {
               <option value="DEPOT">DEPOT</option>
             </select>
             <div className="draft-state">
-              <span>{draftLocation ? 'Nokta hazir' : 'Nokta bekleniyor'}</span>
-              <span>{draftBoundary ? 'Poligon hazir' : 'Poligon opsiyonel'}</span>
+              <span>{draftLocation ? 'Nokta hazır' : 'Nokta bekleniyor'}</span>
+              <span>{draftBoundary ? 'Poligon hazır' : 'Poligon opsiyonel'}</span>
             </div>
             <button type="button" onClick={handleSaveFacility}>
               <Save size={18} />

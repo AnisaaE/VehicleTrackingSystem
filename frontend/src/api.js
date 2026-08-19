@@ -28,7 +28,7 @@ export async function fetchFacilities() {
   const response = await fetch(`${API_BASE_URL}/api/facilities`);
 
   if (!response.ok) {
-    throw new Error('Tesis verileri yuklenemedi.');
+    throw new Error('Tesis verileri yüklenemedi.');
   }
 
   return response.json();
@@ -55,7 +55,7 @@ export async function geocodeAddress(query) {
   const response = await fetch(`${API_BASE_URL}/api/geocode?q=${encodeURIComponent(query)}`);
 
   if (!response.ok) {
-    throw new Error('Adres arama tamamlanamadi.');
+    throw new Error('Adres arama tamamlanamadı.');
   }
 
   return response.json();
@@ -85,7 +85,7 @@ export async function fetchRoute({ fromFacilityId, toLat, toLon, toDestinationId
 
   if (!response.ok) {
     const error = await response.json().catch(() => null);
-    throw new Error(error?.message ?? 'Rota alinamadi.');
+    throw new Error(error?.message ?? 'Rota alınamadı.');
   }
 
   return response.json();
