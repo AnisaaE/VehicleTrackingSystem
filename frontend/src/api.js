@@ -13,6 +13,16 @@ export async function fetchProviders() {
   return response.json();
 }
 
+export async function fetchAppConfig() {
+  const response = await fetch(`${API_BASE_URL}/api/app-config`);
+
+  if (!response.ok) {
+    throw new Error('Uygulama ayarlari yuklenemedi.');
+  }
+
+  return response.json();
+}
+
 export async function fetchVehicles(providerCode) {
   const query = providerCode ? `?providerCode=${encodeURIComponent(providerCode)}` : '';
   const response = await fetch(`${API_BASE_URL}/api/vehicles${query}`);

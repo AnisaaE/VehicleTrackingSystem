@@ -5,8 +5,8 @@ function parseNumber(value, fallback) {
 }
 
 export const appConfig = {
-  municipalityName: import.meta.env.VITE_MUNICIPALITY_NAME ?? 'KOCAELİ BELEDİYESİ',
-  appTitle: import.meta.env.VITE_APP_TITLE ?? 'Araç Takip Sistemi',
+  municipalityName: import.meta.env.VITE_MUNICIPALITY_NAME ?? 'Municipality',
+  appTitle: import.meta.env.VITE_APP_TITLE ?? 'Vehicle Tracking System',
   defaultProviderCode: import.meta.env.VITE_DEFAULT_PROVIDER_CODE ?? '',
   mapCenter: [
     parseNumber(import.meta.env.VITE_MAP_CENTER_LATITUDE, 40.765),

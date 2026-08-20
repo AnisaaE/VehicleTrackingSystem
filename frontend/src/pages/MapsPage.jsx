@@ -269,7 +269,7 @@ function MapClickTarget({ enabled, onTargetSelected }) {
   return null;
 }
 
-export function MapsPage({ onNavigate }) {
+export function MapsPage({ municipalityName, onNavigate }) {
   const [facilities, setFacilities] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
@@ -610,6 +610,7 @@ export function MapsPage({ onNavigate }) {
       activePage="maps"
       connectionStatus={connectionStatus}
       headerIcon={MapIcon}
+      municipalityName={municipalityName}
       onNavigate={onNavigate}
       title="Haritalar"
     >

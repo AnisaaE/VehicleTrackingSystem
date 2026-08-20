@@ -12,6 +12,7 @@ import {
 import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from './config';
+import { fetchAppConfig } from './api';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
 import { AppLayout } from './components/AppLayout';
@@ -189,7 +190,7 @@ function DetailItem({ icon: Icon, label, value }) {
   );
 }
 
-function LiveTrackingPage({ onNavigate }) {
+function LiveTrackingPage({ municipalityName, onNavigate }) {
   const [selectedProviderCode, setSelectedProviderCode] = useState(
     appConfig.defaultProviderCode
   );
@@ -269,6 +270,7 @@ function LiveTrackingPage({ onNavigate }) {
       connectionStatus={connectionStatus}
       headerIcon={MapPinned}
       lastUpdatedAt={lastUpdatedAt}
+      municipalityName={municipalityName}
       onNavigate={onNavigate}
       title="Canlı Takip"
     >
@@ -276,7 +278,7 @@ function LiveTrackingPage({ onNavigate }) {
         <aside className="workspace-panel vehicle-panel">
           <div className="panel-heading">
             <div>
-              <span>{appConfig.municipalityName}</span>
+              <span>{municipalityName}</span>
               <h2>Araçlar</h2>
             </div>
             <strong>{filteredVehicles.length}</strong>
@@ -478,12 +480,26 @@ function LiveTrackingPage({ onNavigate }) {
 
 export default function App() {
   const [activePage, setActivePage] = useState('tracking');
+  const [runtimeConfig, setRuntimeConfig] = useState(appConfig);
+
+  useEffect(() => {
+    fetchAppConfig()
+      .then(nextConfig => {
+        setRuntimeConfig(currentConfig => ({
+          ...currentConfig,
+          ...nextConfig
+        }));
+      })
+      .catch(() => {
+        setRuntimeConfig(appConfig);
+      });
+  }, []);
 
   return (
     <div className="root-shell">
       {activePage === 'tracking'
-        ? <LiveTrackingPage onNavigate={setActivePage} />
-        : <MapsPage onNavigate={setActivePage} />}
+        ? <LiveTrackingPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+        : <MapsPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />}
     </div>
   );
 }

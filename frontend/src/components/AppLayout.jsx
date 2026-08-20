@@ -1,20 +1,13 @@
 import {
-  Bell,
   Building2,
-  CarFront,
-  FileText,
   Map,
   MapPinned,
   Menu,
-  MessageSquare,
-  Settings,
-  UserCircle,
-  Wrench
+  UserCircle
 } from 'lucide-react';
-import { appConfig } from '../config';
 
 const navigationItems = [
-  { id: 'tracking', label: 'Canlı Takip', icon: MapPinned },
+  { id: 'tracking', label: 'Canli Takip', icon: MapPinned },
   { id: 'maps', label: 'Haritalar', icon: Map },
 ];
 
@@ -31,7 +24,7 @@ export function StatusPill({ status = 'connected', label }) {
   return (
     <span className={`app-status-pill ${isConnected ? 'connected' : 'disconnected'}`}>
       <span />
-      {label ?? (isConnected ? 'Bağlı' : 'Bağlantı yok')}
+      {label ?? (isConnected ? 'Bagli' : 'Baglanti yok')}
     </span>
   );
 }
@@ -43,17 +36,18 @@ export function AppLayout({
   connectionStatus,
   headerIcon: HeaderIcon = Map,
   lastUpdatedAt,
+  municipalityName,
   onNavigate,
   title
 }) {
   return (
     <div className="dashboard-shell">
       <aside className="main-sidebar">
-        <button className="sidebar-menu-button" type="button" aria-label="Menü">
+        <button className="sidebar-menu-button" type="button" aria-label="Menu">
           <Menu size={20} />
         </button>
 
-        <nav className="sidebar-nav" aria-label="Ana menü">
+        <nav className="sidebar-nav" aria-label="Ana menu">
           {navigationItems.map(item => {
             const Icon = item.icon;
             const isActive = item.id === activePage;
@@ -77,7 +71,7 @@ export function AppLayout({
 
         <div className="sidebar-brand">
           <Building2 size={21} />
-          <strong>KOCAELİ BELEDİYESİ</strong>
+          <strong>{municipalityName}</strong>
         </div>
       </aside>
 
@@ -91,10 +85,6 @@ export function AppLayout({
           <div className="header-actions">
             <StatusPill status={connectionStatus} label={connectionLabel} />
             <time>{formatHeaderTime(lastUpdatedAt)}</time>
-            {/* <button type="button" aria-label="Bildirimler">
-              <Bell size={19} />
-              <span className="notification-dot">3</span>
-            </button> */}
             <button type="button" aria-label="Profil">
               <UserCircle size={25} />
             </button>
