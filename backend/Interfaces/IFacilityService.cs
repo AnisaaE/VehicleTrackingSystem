@@ -14,4 +14,6 @@ public interface IFacilityService
     Task<IReadOnlyList<FacilityRecord>> GetRecordsWithBoundariesAsync(CancellationToken cancellationToken = default);
 
     Task<FacilityDto> CreateAsync(CreateFacilityRequest request, CancellationToken cancellationToken = default);
+
+    Task<bool> DeleteAsync(int id, CancellationToken cancellationToken = default);
 }

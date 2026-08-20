@@ -104,6 +104,23 @@ public sealed class FacilityService : IFacilityService
         return ToDto(created ?? throw new InvalidOperationException("Facility could not be loaded after create."));
     }
 
+    public async Task<bool> DeleteAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var isOracle = SpatialCommand.IsOracle(_configuration);
+        var connection = await SpatialCommand.OpenConnectionAsync(_dbContext, cancellationToken);
+        await using var command = connection.CreateCommand();
+
+        command.CommandText = isOracle
+            ? "DELETE FROM facilities WHERE id = :id"
+            : "DELETE FROM facilities WHERE id = @id";
+
+        command.AddParameter(Parameter("id", isOracle), id, DbType.Int32);
+
+        return await command.ExecuteNonQueryAsync(cancellationToken) > 0;
+    }
+
     private async Task<FacilityRecord?> QueryRecordByCodeAsync(
         string code,
         CancellationToken cancellationToken)

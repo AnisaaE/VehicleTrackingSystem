@@ -51,6 +51,55 @@ export async function createFacility(facility) {
   return response.json();
 }
 
+export async function deleteFacility(id) {
+  const response = await fetch(`${API_BASE_URL}/api/facilities/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Tesis silinemedi.');
+  }
+}
+
+export async function fetchDestinations() {
+  const response = await fetch(`${API_BASE_URL}/api/destinations`);
+
+  if (!response.ok) {
+    throw new Error('Hedef verileri yüklenemedi.');
+  }
+
+  return response.json();
+}
+
+export async function createDestination(destination) {
+  const response = await fetch(`${API_BASE_URL}/api/destinations`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(destination)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Hedef kaydedilemedi.');
+  }
+
+  return response.json();
+}
+
+export async function deleteDestination(id) {
+  const response = await fetch(`${API_BASE_URL}/api/destinations/${encodeURIComponent(id)}`, {
+    method: 'DELETE'
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Hedef silinemedi.');
+  }
+}
+
 export async function geocodeAddress(query) {
   const response = await fetch(`${API_BASE_URL}/api/geocode?q=${encodeURIComponent(query)}`);
 

@@ -1397,6 +1397,54 @@ h2 {
   transform: scale(1.08);
 }
 
+.facility-popup {
+  display: grid;
+  gap: 5px;
+  min-width: 160px;
+}
+
+.facility-popup strong,
+.facility-popup span,
+.facility-popup em {
+  display: block;
+}
+
+.facility-popup strong {
+  color: #0f172a;
+  font-size: 13px;
+}
+
+.facility-popup span {
+  color: #475569;
+  font-size: 12px;
+}
+
+.facility-popup em {
+  color: #64748b;
+  font-size: 11px;
+  font-style: normal;
+}
+
+.facility-popup button {
+  align-items: center;
+  background: #fee2e2;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  color: #991b1b;
+  cursor: pointer;
+  display: inline-flex;
+  font-weight: 800;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.facility-popup button:hover {
+  background: #fecaca;
+}
+
 .route-map-badge {
   position: absolute;
   left: 50%;

@@ -69,4 +69,30 @@ public sealed class FacilitiesController : ControllerBase
             return Conflict(new ErrorResponse(exception.Message));
         }
     }
+
+    [HttpDelete("{id:int}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var deleted = await _facilityService.DeleteAsync(id, cancellationToken);
+
+            if (!deleted)
+            {
+                return NotFound(new ErrorResponse($"Facility with id '{id}' was not found."));
+            }
+
+            return NoContent();
+        }
+        catch (Exception exception)
+        {
+            return Conflict(new ErrorResponse(
+                $"Facility cannot be deleted because it is used by route requests or another database constraint. Details: {exception.Message}"));
+        }
+    }
 }

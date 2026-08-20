@@ -17,12 +17,16 @@ import {
   Trash2,
   Warehouse
 } from 'lucide-react';
-import { GeoJSON, MapContainer, Marker, Polyline, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
 import {
+  createDestination,
   createFacility,
   createVehicleLocationConnection,
+  deleteDestination,
+  deleteFacility,
+  fetchDestinations,
   fetchFacilities,
   fetchRoute,
   geocodeAddress
@@ -267,7 +271,9 @@ function MapClickTarget({ enabled, onTargetSelected }) {
 
 export function MapsPage({ onNavigate }) {
   const [facilities, setFacilities] = useState([]);
+  const [destinations, setDestinations] = useState([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
+  const [selectedDestinationId, setSelectedDestinationId] = useState('');
   const [facilitySearchTerm, setFacilitySearchTerm] = useState('');
   const [addressQuery, setAddressQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
@@ -326,6 +332,10 @@ export function MapsPage({ onNavigate }) {
     () => visibleFacilities.find(facility => facility.id === Number(selectedFacilityId)) ?? visibleFacilities[0] ?? null,
     [selectedFacilityId, visibleFacilities]
   );
+  const selectedDestination = useMemo(
+    () => destinations.find(destination => destination.id === Number(selectedDestinationId)) ?? null,
+    [destinations, selectedDestinationId]
+  );
   const routePositions = useMemo(() => routeToPositions(route), [route]);
 
   const toggleFacilityType = typeCode => {
@@ -352,6 +362,15 @@ export function MapsPage({ onNavigate }) {
   useEffect(() => {
     loadFacilities().catch(nextError => setError(nextError.message));
   }, [loadFacilities]);
+
+  const loadDestinations = useCallback(async () => {
+    const nextDestinations = await fetchDestinations();
+    setDestinations(nextDestinations);
+  }, []);
+
+  useEffect(() => {
+    loadDestinations().catch(nextError => setError(nextError.message));
+  }, [loadDestinations]);
 
   useEffect(() => {
     if (visibleFacilities.length === 0) {
@@ -463,6 +482,98 @@ export function MapsPage({ onNavigate }) {
     }
   };
 
+  const handleSelectDestination = destinationId => {
+    setSelectedDestinationId(destinationId);
+
+    const destination = destinations.find(currentDestination => currentDestination.id === Number(destinationId));
+
+    if (!destination) {
+      return;
+    }
+
+    const position = pointToLatLng(destination.location);
+
+    if (!position) {
+      return;
+    }
+
+    setTarget({
+      latitude: position[0],
+      longitude: position[1],
+      label: destination.name
+    });
+    setSuggestions([]);
+  };
+
+  const handleSaveDestination = async () => {
+    if (!target) {
+      setError('Kaydetmek için önce bir hedef seçin.');
+      return;
+    }
+
+    try {
+      const created = await createDestination({
+        name: addressQuery.trim() || target.label || 'Yeni Hedef',
+        location: JSON.stringify({
+          type: 'Point',
+          coordinates: [target.longitude, target.latitude]
+        })
+      });
+
+      setDestinations(current => [...current, created].sort((first, second) => first.name.localeCompare(second.name, 'tr')));
+      setSelectedDestinationId(String(created.id));
+      setTarget({
+        latitude: target.latitude,
+        longitude: target.longitude,
+        label: created.name
+      });
+      setNotice('Hedef kaydedildi.');
+      setError(null);
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  };
+
+  const handleDeleteDestination = async () => {
+    if (!selectedDestination) {
+      return;
+    }
+
+    if (!window.confirm(`${selectedDestination.name} hedefini veritabanından silmek istiyor musunuz?`)) {
+      return;
+    }
+
+    try {
+      await deleteDestination(selectedDestination.id);
+      setDestinations(current => current.filter(destination => destination.id !== selectedDestination.id));
+      setSelectedDestinationId('');
+      setNotice('Hedef silindi.');
+      setError(null);
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  };
+
+  const handleDeleteFacility = async facility => {
+    if (!window.confirm(`${facility.name} tesisini veritabanından silmek istiyor musunuz?`)) {
+      return;
+    }
+
+    try {
+      await deleteFacility(facility.id);
+      setFacilities(current => current.filter(currentFacility => currentFacility.id !== facility.id));
+
+      if (selectedFacilityId === String(facility.id)) {
+        setSelectedFacilityId('');
+      }
+
+      setNotice('Tesis silindi.');
+      setError(null);
+    } catch (nextError) {
+      setError(nextError.message);
+    }
+  };
+
   const handleRoute = async () => {
     if (!selectedFacility || !target) {
       setError('Rota için tesis ve hedef seçin.');
@@ -473,7 +584,8 @@ export function MapsPage({ onNavigate }) {
       const nextRoute = await fetchRoute({
         fromFacilityId: selectedFacility.id,
         toLat: target.latitude,
-        toLon: target.longitude
+        toLon: target.longitude,
+        toDestinationId: selectedDestinationId || undefined
       });
       setRoute(nextRoute);
       setNotice('Rota hazır.');
@@ -623,6 +735,7 @@ export function MapsPage({ onNavigate }) {
             <MapCommandToolbar isPickMode={isPickMode} />
             <MapClickTarget enabled={isPickMode} onTargetSelected={nextTarget => {
               setTarget(nextTarget);
+              setSelectedDestinationId('');
               setIsPickMode(false);
             }} />
 
@@ -640,7 +753,19 @@ export function MapsPage({ onNavigate }) {
                       icon={createFacilityMarkerIcon(facility, isSelected)}
                       zIndexOffset={isSelected ? 1000 : 0}
                       eventHandlers={{ click: () => setSelectedFacilityId(String(facility.id)) }}
-                    />
+                    >
+                      <Popup>
+                        <div className="facility-popup">
+                          <strong>{facility.name}</strong>
+                          <span>{facility.code}</span>
+                          <em>{formatFacilityTypeLabel(facility.facilityType)}</em>
+                          <button type="button" onClick={() => handleDeleteFacility(facility)}>
+                            <Trash2 size={15} />
+                            Sil
+                          </button>
+                        </div>
+                      </Popup>
+                    </Marker>
                   )}
                 </Fragment>
               );
@@ -711,6 +836,7 @@ export function MapsPage({ onNavigate }) {
                       longitude: suggestion.longitude,
                       label: suggestion.displayName
                     });
+                    setSelectedDestinationId('');
                     setSuggestions([]);
                   }}>
                     <MapPin size={16} />
@@ -730,6 +856,16 @@ export function MapsPage({ onNavigate }) {
             </button>
           </div>
 
+          <label className="field-stack panel-field">
+            <span>Kayitli Hedefler</span>
+            <select value={selectedDestinationId} onChange={event => handleSelectDestination(event.target.value)}>
+              <option value="">Kayitli hedef sec</option>
+              {destinations.map(destination => (
+                <option key={destination.id} value={destination.id}>{destination.name}</option>
+              ))}
+            </select>
+          </label>
+
           {target && (
             <div className="address-card">
               <MapPin size={18} />
@@ -739,6 +875,15 @@ export function MapsPage({ onNavigate }) {
               </div>
             </div>
           )}
+
+          <div className="segmented-actions">
+            <button type="button" onClick={handleSaveDestination} disabled={!target}>
+              Hedefi Kaydet
+            </button>
+            <button type="button" onClick={handleDeleteDestination} disabled={!selectedDestination}>
+              Hedefi Sil
+            </button>
+          </div>
 
           <button className="primary-action-button" type="button" onClick={handleRoute}>
             <Navigation size={18} />

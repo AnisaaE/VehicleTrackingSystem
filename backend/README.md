@@ -110,12 +110,12 @@ The migration registers `FACILITIES.LOCATION` and `FACILITIES.BOUNDARY` in `USER
 
 ### Table: destinations
 
-Stores predefined route destinations.
+Stores reusable route destinations, called `hedefler`. These are frequently used target points that can be saved once and reused in later route requests.
 
 | Column | Oracle type | Nullable | Description |
 | --- | --- | --- | --- |
 | id | NUMBER(10) identity | No | Primary key. |
-| name | NVARCHAR2(200) | No | Destination display name. |
+| name | NVARCHAR2(200) | No | Destination display name, for example `A Mahallesi B Caddesi`. |
 | location | SDO_GEOMETRY | No | Point geometry stored with SRID 4326. |
 
 Indexes and spatial metadata:
@@ -339,6 +339,7 @@ Vehicle location response shape:
 | GET | `/api/facilities` | Returns all facilities as DTOs with GeoJSON location and optional boundary. |
 | GET | `/api/facilities/{id}` | Returns one facility by id. |
 | POST | `/api/facilities` | Creates a facility from GeoJSON point and optional polygon boundary. |
+| DELETE | `/api/facilities/{id}` | Deletes a facility if it is not blocked by route history. |
 
 Create facility request example:
 
@@ -349,6 +350,35 @@ Create facility request example:
   "facilityType": "FIRE_STATION",
   "location": "{\"type\":\"Point\",\"coordinates\":[29.955,40.772]}",
   "boundary": null
+}
+```
+
+### Destinations
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/api/destinations` | Returns saved route destinations, also called `hedefler`. |
+| GET | `/api/destinations/{id}` | Returns one saved destination by id. |
+| POST | `/api/destinations` | Creates a reusable destination from a GeoJSON point. |
+| PUT | `/api/destinations/{id}` | Updates a saved destination name or point. |
+| DELETE | `/api/destinations/{id}` | Deletes a destination if it is not blocked by route history. |
+
+Create destination request example:
+
+```json
+{
+  "name": "A Mahallesi B Caddesi",
+  "location": "{\"type\":\"Point\",\"coordinates\":[29.955,40.772]}"
+}
+```
+
+Destination response shape:
+
+```json
+{
+  "id": 1,
+  "name": "A Mahallesi B Caddesi",
+  "location": "{\"type\":\"Point\",\"coordinates\":[29.955,40.772]}"
 }
 ```
 
