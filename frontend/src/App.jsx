@@ -29,6 +29,7 @@ import {
 } from './api';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
+import { NearestVehiclesPage } from './pages/NearestVehiclesPage';
 import { AppLayout } from './components/AppLayout';
 
 function createVehicleIcon(iconUrl, className = '') {
@@ -962,9 +963,15 @@ export default function App() {
 
   return (
     <div className="root-shell">
-      {activePage === 'tracking'
-        ? <LiveTrackingPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
-        : <MapsPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />}
+      {activePage === 'tracking' && (
+        <LiveTrackingPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+      )}
+      {activePage === 'nearest' && (
+        <NearestVehiclesPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+      )}
+      {activePage === 'maps' && (
+        <MapsPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+      )}
     </div>
   );
 }

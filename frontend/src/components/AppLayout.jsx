@@ -1,5 +1,6 @@
 import {
   Building2,
+  LocateFixed,
   Map,
   MapPinned,
   Menu,
@@ -8,6 +9,7 @@ import {
 
 const navigationItems = [
   { id: 'tracking', label: 'Canli Takip', icon: MapPinned },
+  { id: 'nearest', label: 'Yakin Arac', icon: LocateFixed },
   { id: 'maps', label: 'Haritalar', icon: Map },
 ];
 
@@ -51,7 +53,7 @@ export function AppLayout({
           {navigationItems.map(item => {
             const Icon = item.icon;
             const isActive = item.id === activePage;
-            const isEnabled = item.id === 'tracking' || item.id === 'maps';
+            const isEnabled = item.id === 'tracking' || item.id === 'nearest' || item.id === 'maps';
 
             return (
               <button
