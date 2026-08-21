@@ -13,6 +13,7 @@ public static class DatabaseSeeder
 
         await EnsureVehicleTypesAsync(dbContext, providersByCode, cancellationToken);
         await EnsureFieldMappingsAsync(dbContext, providersByCode, cancellationToken);
+        await EnsureEmployeesAsync(dbContext, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -134,6 +135,46 @@ public static class DatabaseSeeder
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Speed", "CurrentSpeed");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "IgnitionOn", "IgnitionState");
         AddFieldMappingIfMissing(existingKeys, dbContext, providersByCode["MOBILIZ"], "Timestamp", "GpsTime");
+    }
+
+    private static async Task EnsureEmployeesAsync(
+        VehicleTrackingDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var hasEmployees = await dbContext.Employees.AnyAsync(cancellationToken);
+
+        if (hasEmployees)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+
+        dbContext.Employees.AddRange(
+            new Employee
+            {
+                FullName = "Dispatch Operator",
+                Role = "DISPATCHER",
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new Employee
+            {
+                FullName = "Driver One",
+                Role = "DRIVER",
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            },
+            new Employee
+            {
+                FullName = "Driver Two",
+                Role = "DRIVER",
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
     }
 
     private static void AddProviderIfMissing(

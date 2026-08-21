@@ -10,15 +10,18 @@ public sealed class VehicleLocationService : IVehicleLocationService
     private readonly VehicleTrackingDbContext _dbContext;
     private readonly IVehicleTrackingProviderResolver _providerResolver;
     private readonly IVehicleLocationMapper _vehicleLocationMapper;
+    private readonly IVehicleService _vehicleService;
 
     public VehicleLocationService(
         VehicleTrackingDbContext dbContext,
         IVehicleTrackingProviderResolver providerResolver,
-        IVehicleLocationMapper vehicleLocationMapper)
+        IVehicleLocationMapper vehicleLocationMapper,
+        IVehicleService vehicleService)
     {
         _dbContext = dbContext;
         _providerResolver = providerResolver;
         _vehicleLocationMapper = vehicleLocationMapper;
+        _vehicleService = vehicleService;
     }
 
     public async Task<IReadOnlyList<VehicleLocationDto>> GetCurrentLocationsAsync(
@@ -124,10 +127,14 @@ public sealed class VehicleLocationService : IVehicleLocationService
 
         var rawLocations = await provider.GetRawLocationsAsync(cancellationToken);
 
-        return await _vehicleLocationMapper.MapAsync(
+        var vehicles = await _vehicleLocationMapper.MapAsync(
             providerCode,
             rawLocations,
             cancellationToken);
+
+        await _vehicleService.EnsureFromLocationsAsync(vehicles, cancellationToken);
+
+        return vehicles;
     }
 
     private static string NormalizePlate(string plate) =>

@@ -1,5 +1,6 @@
 using VehicleTrackingSystem.Interfaces;
 using System.Text.Json;
+using VehicleTrackingSystem.DTOs.VehicleTrips;
 
 namespace VehicleTrackingSystem.TrackingProviders;
 
@@ -22,38 +23,56 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
 
     private readonly Lazy<IReadOnlyList<RouteData>> _routes;
     private readonly ITrackingProviderCredentialService _credentialService;
+    private readonly IVehicleTripService _vehicleTripService;
 
     public ArventoTrackingProvider(
         IWebHostEnvironment environment,
-        ITrackingProviderCredentialService credentialService)
+        ITrackingProviderCredentialService credentialService,
+        IVehicleTripService vehicleTripService)
     {
         _credentialService = credentialService;
+        _vehicleTripService = vehicleTripService;
         _routes = new Lazy<IReadOnlyList<RouteData>>(
             () => LoadRoutes(environment.ContentRootPath));
     }
 
     public string ProviderCode => "ARVENTO";
 
-    public Task<IReadOnlyList<JsonElement>> GetRawLocationsAsync(
+    public async Task<IReadOnlyList<JsonElement>> GetRawLocationsAsync(
         CancellationToken cancellationToken = default)
     {
         var credentials = _credentialService.GetCredentials(ProviderCode);
         var routes = _routes.Value;
         var now = DateTimeOffset.UtcNow;
+        var activeTripRoutes = await GetActiveTripRoutesAsync(cancellationToken);
 
-        if (routes.Count == 0)
+        if (routes.Count == 0 && activeTripRoutes.Count == 0)
         {
-            return Task.FromResult<IReadOnlyList<JsonElement>>([]);
+            return [];
         }
 
         var locations = VehicleSeeds
             .Select((vehicle, index) =>
             {
-                var route = routes[index % routes.Count];
-                var elapsedSeconds = (now.ToUnixTimeSeconds() + vehicle.StartOffsetSeconds) % RouteCycleSeconds;
-                var progress = elapsedSeconds / (double)RouteCycleSeconds;
+                // DEMO-ONLY SIMULATOR BEHAVIOR:
+                // Real tracking providers should NOT read our vehicle_trips table to decide where a vehicle is.
+                // A real provider only reports actual GPS positions from the external system. This override exists
+                // only so the local fake Arvento provider can visually follow an assigned route during demos.
+                var route = activeTripRoutes.TryGetValue(NormalizePlate(vehicle.Plate), out var assignedTripRoute)
+                    ? assignedTripRoute.Route
+                    : routes[index % routes.Count];
+                var isAssignedRoute = assignedTripRoute is not null;
+                var routeCycleSeconds = isAssignedRoute
+                    ? Math.Max(90, (int)Math.Round(route.TotalDistanceKm / Math.Max(route.EstimatedSpeedKmh, 15) * 3600))
+                    : RouteCycleSeconds;
+                var elapsedSeconds = isAssignedRoute
+                    ? Math.Min(routeCycleSeconds, (int)Math.Max(0, (now - assignedTripRoute!.AssignedAt).TotalSeconds))
+                    : (now.ToUnixTimeSeconds() + vehicle.StartOffsetSeconds) % routeCycleSeconds;
+                var progress = elapsedSeconds / (double)routeCycleSeconds;
                 var point = route.GetPointAt(progress);
-                var speed = route.EstimatedSpeedKmh;
+                var speed = isAssignedRoute && elapsedSeconds >= routeCycleSeconds
+                    ? 0
+                    : route.EstimatedSpeedKmh;
 
                 return JsonSerializer.SerializeToElement(new
                 {
@@ -70,7 +89,34 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
             })
             .ToList();
 
-        return Task.FromResult<IReadOnlyList<JsonElement>>(locations);
+        return locations;
+    }
+
+    private async Task<IReadOnlyDictionary<string, SimulatedTripRoute>> GetActiveTripRoutesAsync(
+        CancellationToken cancellationToken)
+    {
+        var activeTrips = await _vehicleTripService.GetActiveForProviderAsync(
+            ProviderCode,
+            cancellationToken);
+
+        return activeTrips
+            .Where(trip => !string.IsNullOrWhiteSpace(trip.RouteGeometry))
+            .Select(trip => new
+            {
+                Plate = NormalizePlate(trip.VehiclePlate),
+                Route = ParseRouteGeometry(trip.RouteGeometry!),
+                trip.AssignedAt
+            })
+            .Where(tripRoute => tripRoute.Route.Points.Count > 1)
+            .GroupBy(tripRoute => tripRoute.Plate)
+            .ToDictionary(
+                group => group.Key,
+                group =>
+                {
+                    var tripRoute = group.First();
+                    return new SimulatedTripRoute(tripRoute.Route, tripRoute.AssignedAt);
+                },
+                StringComparer.OrdinalIgnoreCase);
     }
 
     private static bool HasAnyCredential(Options.TrackingProviderCredentials credentials)
@@ -85,6 +131,10 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
         string Name,
         string VehicleType,
         int StartOffsetSeconds);
+
+    private sealed record SimulatedTripRoute(
+        RouteData Route,
+        DateTimeOffset AssignedAt);
 
     private static IReadOnlyList<RouteData> LoadRoutes(string contentRootPath)
     {
@@ -134,6 +184,32 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
 
         return new RouteData([]);
     }
+
+    private static RouteData ParseRouteGeometry(string geometryJson)
+    {
+        using var document = JsonDocument.Parse(geometryJson);
+        var root = document.RootElement;
+
+        if (root.GetProperty("type").GetString() != "LineString")
+        {
+            return new RouteData([]);
+        }
+
+        var points = root.GetProperty("coordinates")
+            .EnumerateArray()
+            .Select(coordinate => new RoutePoint(
+                coordinate[1].GetDouble(),
+                coordinate[0].GetDouble()))
+            .ToList();
+
+        return new RouteData(points);
+    }
+
+    private static string NormalizePlate(string value) =>
+        value.Replace(" ", string.Empty, StringComparison.Ordinal)
+            .Replace("-", string.Empty, StringComparison.Ordinal)
+            .Trim()
+            .ToUpperInvariant();
 
     private sealed class RouteData
     {

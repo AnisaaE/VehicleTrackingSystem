@@ -16,6 +16,14 @@ public class VehicleTrackingDbContext : DbContext
 
     public DbSet<FieldMapping> FieldMappings => Set<FieldMapping>();
 
+    public DbSet<Vehicle> Vehicles => Set<Vehicle>();
+
+    public DbSet<Employee> Employees => Set<Employee>();
+
+    public DbSet<VehicleTrip> VehicleTrips => Set<VehicleTrip>();
+
+    public DbSet<VehicleProviderSeen> VehicleProviderSeen => Set<VehicleProviderSeen>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -93,6 +101,145 @@ public class VehicleTrackingDbContext : DbContext
                     fieldMapping.SystemField
                 })
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<Vehicle>(entity =>
+        {
+            entity.ToTable("vehicles");
+
+            entity.HasKey(vehicle => vehicle.Id);
+
+            entity.Property(vehicle => vehicle.Plate)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(vehicle => vehicle.Name)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            entity.Property(vehicle => vehicle.IsActive)
+                .IsRequired();
+
+            entity.Property(vehicle => vehicle.CreatedAt)
+                .IsRequired();
+
+            entity.Property(vehicle => vehicle.UpdatedAt)
+                .IsRequired();
+
+            entity.HasIndex(vehicle => new
+                {
+                    vehicle.ProviderId,
+                    vehicle.Plate
+                })
+                .IsUnique();
+
+            entity.HasOne(vehicle => vehicle.Provider)
+                .WithMany()
+                .HasForeignKey(vehicle => vehicle.ProviderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(vehicle => vehicle.VehicleType)
+                .WithMany()
+                .HasForeignKey(vehicle => vehicle.VehicleTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Employee>(entity =>
+        {
+            entity.ToTable("employees");
+
+            entity.HasKey(employee => employee.Id);
+
+            entity.Property(employee => employee.FullName)
+                .HasMaxLength(150)
+                .IsRequired();
+
+            entity.Property(employee => employee.Phone)
+                .HasMaxLength(50);
+
+            entity.Property(employee => employee.Email)
+                .HasMaxLength(200);
+
+            entity.Property(employee => employee.Role)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(employee => employee.IsActive)
+                .IsRequired();
+
+            entity.Property(employee => employee.CreatedAt)
+                .IsRequired();
+
+            entity.Property(employee => employee.UpdatedAt)
+                .IsRequired();
+        });
+
+        modelBuilder.Entity<VehicleTrip>(entity =>
+        {
+            entity.ToTable("vehicle_trips");
+
+            entity.HasKey(trip => trip.Id);
+
+            entity.Property(trip => trip.Status)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(trip => trip.AssignedAt)
+                .IsRequired();
+
+            entity.Property(trip => trip.Notes)
+                .HasMaxLength(1000);
+
+            entity.HasIndex(trip => new
+            {
+                trip.VehicleId,
+                trip.Status
+            });
+
+            entity.HasOne(trip => trip.Vehicle)
+                .WithMany()
+                .HasForeignKey(trip => trip.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(trip => trip.Driver)
+                .WithMany()
+                .HasForeignKey(trip => trip.DriverId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(trip => trip.AssignedByEmployee)
+                .WithMany()
+                .HasForeignKey(trip => trip.AssignedByEmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<VehicleProviderSeen>(entity =>
+        {
+            entity.ToTable("vehicle_provider_seen");
+
+            entity.HasKey(seen => seen.Id);
+
+            entity.Property(seen => seen.LastSeenAt)
+                .IsRequired();
+
+            entity.Property(seen => seen.LastProviderTimestamp)
+                .IsRequired();
+
+            entity.HasIndex(seen => new
+                {
+                    seen.VehicleId,
+                    seen.ProviderId
+                })
+                .IsUnique();
+
+            entity.HasOne(seen => seen.Vehicle)
+                .WithMany()
+                .HasForeignKey(seen => seen.VehicleId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(seen => seen.Provider)
+                .WithMany()
+                .HasForeignKey(seen => seen.ProviderId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

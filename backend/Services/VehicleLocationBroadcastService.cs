@@ -85,6 +85,13 @@ public sealed class VehicleLocationBroadcastService : BackgroundService
                 allVehicles,
                 cancellationToken);
 
+            var vehicleTripService = scope.ServiceProvider
+                .GetRequiredService<IVehicleTripService>();
+
+            await vehicleTripService.UpdateProgressFromLocationsAsync(
+                allVehicles,
+                cancellationToken);
+
             foreach (var departure in departures)
             {
                 await _hubContext.Clients

@@ -1,0 +1,27 @@
+namespace VehicleTrackingSystem.DTOs.VehicleTrips;
+
+public sealed record VehicleTripDto(
+    int Id,
+    int VehicleId,
+    string VehiclePlate,
+    string VehicleName,
+    string ProviderCode,
+    int? DriverId,
+    string? DriverName,
+    int? OriginFacilityId,
+    string? OriginFacilityName,
+    int? DestinationId,
+    string? DestinationName,
+    double DestinationLatitude,
+    double DestinationLongitude,
+    string Status,
+    DateTimeOffset AssignedAt,
+    DateTimeOffset? StartedAt,
+    DateTimeOffset? CompletedAt,
+    DateTimeOffset? CancelledAt,
+    double? EstimatedDistanceMeters,
+    double? EstimatedDurationSeconds,
+    double? ActualDistanceMeters,
+    double? ActualDurationSeconds,
+    string? RouteGeometry,
+    string? Notes);

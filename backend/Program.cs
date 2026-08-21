@@ -72,12 +72,15 @@ else
 
 builder.Services.AddScoped<IProviderService, ProviderService>();
 builder.Services.AddScoped<IVehicleTypeService, VehicleTypeService>();
+builder.Services.AddScoped<IVehicleService, VehicleService>();
 builder.Services.AddScoped<IVehicleLocationService, VehicleLocationService>();
 builder.Services.AddScoped<IVehicleLocationMapper, VehicleLocationMapper>();
 builder.Services.AddScoped<IVehicleTrackingProviderResolver, VehicleTrackingProviderResolver>();
 builder.Services.AddScoped<ITrackingProviderCredentialService, TrackingProviderCredentialService>();
 builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IDestinationService, DestinationService>();
+builder.Services.AddScoped<IEmployeeService, EmployeeService>();
+builder.Services.AddScoped<IVehicleTripService, VehicleTripService>();
 builder.Services.AddSingleton<IFacilityGeofenceService, FacilityGeofenceService>();
 builder.Services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
 builder.Services.AddHttpClient<IRoutingService, OsrmRoutingService>();

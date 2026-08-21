@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createVehicleLocationConnection, fetchVehicles, fetchProviders } from './api';
 
-export function useVehicleLocations(providerCode) {
+export function useVehicleLocations(providerCode, onVehicleLeftFacility) {
   const [vehicles, setVehicles] = useState([]);
   const [providers, setProviders] = useState([]);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
@@ -48,7 +48,8 @@ export function useVehicleLocations(providerCode) {
       setConnectionStatus,
       nextConnection => providerCode
         ? nextConnection.invoke('SubscribeToProvider', providerCode)
-        : nextConnection.invoke('SubscribeToAllProviders')
+        : nextConnection.invoke('SubscribeToAllProviders'),
+      onVehicleLeftFacility
     );
 
     async function start() {
@@ -91,7 +92,7 @@ export function useVehicleLocations(providerCode) {
       isMounted = false;
       connection.stop();
     };
-  }, [providerCode]);
+  }, [providerCode, onVehicleLeftFacility]);
 
   return useMemo(
     () => ({

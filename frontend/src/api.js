@@ -34,6 +34,77 @@ export async function fetchVehicles(providerCode) {
   return response.json();
 }
 
+export async function fetchEmployees() {
+  const response = await fetch(`${API_BASE_URL}/api/employees`);
+
+  if (!response.ok) {
+    throw new Error('Personel verileri yuklenemedi.');
+  }
+
+  return response.json();
+}
+
+export async function fetchActiveVehicleTrips({ providerCode, plate } = {}) {
+  const params = new URLSearchParams();
+
+  if (providerCode && plate) {
+    params.set('providerCode', providerCode);
+    params.set('plate', plate);
+  }
+
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const response = await fetch(`${API_BASE_URL}/api/vehicle-trips/active${query}`);
+
+  if (!response.ok) {
+    throw new Error('Aktif gorev verileri yuklenemedi.');
+  }
+
+  return response.json();
+}
+
+export async function createVehicleTrip(trip) {
+  const response = await fetch(`${API_BASE_URL}/api/vehicle-trips`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(trip)
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Gorev olusturulamadi.');
+  }
+
+  return response.json();
+}
+
+export async function completeVehicleTrip(id) {
+  const response = await fetch(`${API_BASE_URL}/api/vehicle-trips/${encodeURIComponent(id)}/complete`, {
+    method: 'POST'
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Gorev tamamlanamadi.');
+  }
+
+  return response.json();
+}
+
+export async function cancelVehicleTrip(id) {
+  const response = await fetch(`${API_BASE_URL}/api/vehicle-trips/${encodeURIComponent(id)}/cancel`, {
+    method: 'POST'
+  });
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => null);
+    throw new Error(error?.message ?? 'Gorev iptal edilemedi.');
+  }
+
+  return response.json();
+}
+
 export async function fetchFacilities() {
   const response = await fetch(`${API_BASE_URL}/api/facilities`);
 
@@ -120,10 +191,24 @@ export async function geocodeAddress(query) {
   return response.json();
 }
 
-export async function fetchRoute({ fromFacilityId, toLat, toLon, toDestinationId, vehiclePlate, providerCode }) {
-  const params = new URLSearchParams({
-    fromFacilityId: String(fromFacilityId)
-  });
+export async function fetchRoute({
+  fromFacilityId,
+  fromLat,
+  fromLon,
+  toLat,
+  toLon,
+  toDestinationId,
+  vehiclePlate,
+  providerCode
+}) {
+  const params = new URLSearchParams();
+
+  if (fromFacilityId) {
+    params.set('fromFacilityId', String(fromFacilityId));
+  } else {
+    params.set('fromLat', String(fromLat));
+    params.set('fromLon', String(fromLon));
+  }
 
   if (toDestinationId) {
     params.set('toDestinationId', String(toDestinationId));

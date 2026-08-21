@@ -1,18 +1,32 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   CarFront,
+  Clock3,
+  Flag,
   Gauge,
   LocateFixed,
   MapPinned,
   MapPin,
+  Navigation,
   Power,
+  Route,
   Search,
   Wifi
 } from 'lucide-react';
-import { MapContainer, Marker, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from './config';
-import { fetchAppConfig } from './api';
+import {
+  cancelVehicleTrip,
+  completeVehicleTrip,
+  createVehicleTrip,
+  fetchActiveVehicleTrips,
+  fetchAppConfig,
+  fetchDestinations,
+  fetchEmployees,
+  fetchFacilities,
+  fetchRoute
+} from './api';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
 import { AppLayout } from './components/AppLayout';
@@ -35,6 +49,17 @@ const vehicleIcons = {
   SWEEPER: createVehicleIcon('/markers/sweeper.png'),
   DEFAULT: createVehicleIcon('/markers/default-vihacle.png')
 };
+
+const destinationIcon = new L.Icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+  className: 'destination-marker'
+});
 
 const vehicleTypeLabels = {
   AMBULANCE: 'Ambulans',
@@ -61,6 +86,51 @@ function normalizePlate(value) {
 
 function getVehicleKey(vehicle) {
   return `${vehicle.provider}:${vehicle.plate}`;
+}
+
+function parseGeometry(value) {
+  if (!value) {
+    return null;
+  }
+
+  return typeof value === 'string' ? JSON.parse(value) : value;
+}
+
+function pointToLatLng(geoJson) {
+  const geometry = parseGeometry(geoJson);
+
+  if (!geometry || geometry.type !== 'Point') {
+    return null;
+  }
+
+  return [geometry.coordinates[1], geometry.coordinates[0]];
+}
+
+function routeToPositions(route) {
+  const geometry = parseGeometry(route?.geometry);
+
+  if (!geometry || geometry.type !== 'LineString') {
+    return [];
+  }
+
+  return geometry.coordinates.map(coordinate => [coordinate[1], coordinate[0]]);
+}
+
+function formatDistance(value) {
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
+
+  return value >= 1000 ? `${(value / 1000).toFixed(1)} km` : `${Math.round(value)} m`;
+}
+
+function formatDuration(value) {
+  if (!Number.isFinite(value)) {
+    return '-';
+  }
+
+  const minutes = Math.max(1, Math.round(value / 60));
+  return `${minutes} dk`;
 }
 
 function normalizeVehicleType(value) {
@@ -137,7 +207,10 @@ function MapFocus({ vehicles, selectedVehicle }) {
   return null;
 }
 
-function VehicleMap({ vehicles, selectedVehicle, onSelectVehicle }) {
+function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRoute, travelledRoute, onSelectVehicle }) {
+  const remainingPositions = routeToPositions(remainingRoute);
+  const travelledPositions = routeToPositions(travelledRoute);
+
   return (
     <MapContainer
       center={appConfig.mapCenter}
@@ -152,6 +225,15 @@ function VehicleMap({ vehicles, selectedVehicle, onSelectVehicle }) {
       />
       <ZoomControl position="topright" />
       <MapFocus vehicles={vehicles} selectedVehicle={selectedVehicle} />
+      {travelledPositions.length > 0 && (
+        <Polyline positions={travelledPositions} pathOptions={{ color: '#64748b', dashArray: '7 8', weight: 4 }} />
+      )}
+      {remainingPositions.length > 0 && (
+        <Polyline positions={remainingPositions} pathOptions={{ color: '#2563eb', weight: 5 }} />
+      )}
+      {destinationTarget && (
+        <Marker position={[destinationTarget.latitude, destinationTarget.longitude]} icon={destinationIcon} />
+      )}
       {vehicles.map(vehicle => {
         const vehicleKey = getVehicleKey(vehicle);
         const isSelected = selectedVehicle && getVehicleKey(selectedVehicle) === vehicleKey;
@@ -194,11 +276,31 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
   const [selectedProviderCode, setSelectedProviderCode] = useState(
     appConfig.defaultProviderCode
   );
+  const [departuresByVehicle, setDeparturesByVehicle] = useState({});
+  const handleVehicleDeparture = useCallback(departure => {
+    setDeparturesByVehicle(current => ({
+      ...current,
+      [`${departure.provider}:${departure.plate}`]: departure
+    }));
+  }, []);
   const { vehicles, providers, connectionStatus, lastUpdatedAt, error } =
-    useVehicleLocations(selectedProviderCode);
+    useVehicleLocations(selectedProviderCode, handleVehicleDeparture);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlate, setSelectedPlate] = useState(null);
   const [hiddenVehicleTypes, setHiddenVehicleTypes] = useState([]);
+  const [facilities, setFacilities] = useState([]);
+  const [destinations, setDestinations] = useState([]);
+  const [employees, setEmployees] = useState([]);
+  const [manualOriginFacilityId, setManualOriginFacilityId] = useState('');
+  const [selectedDestinationId, setSelectedDestinationId] = useState('');
+  const [selectedDriverId, setSelectedDriverId] = useState('');
+  const [activeTrip, setActiveTrip] = useState(null);
+  const [remainingRoute, setRemainingRoute] = useState(null);
+  const [travelledRoute, setTravelledRoute] = useState(null);
+  const [routeError, setRouteError] = useState(null);
+  const [tripNotice, setTripNotice] = useState(null);
+  const [isRouteLoading, setIsRouteLoading] = useState(false);
+  const routeRequestRef = useRef(0);
 
   const availableVehicleTypes = useMemo(() => {
     const typesByCode = new Map();
@@ -244,15 +346,80 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
     [filteredVehicles, selectedPlate]
   );
 
+  const selectedVehicleKey = selectedVehicle ? getVehicleKey(selectedVehicle) : null;
+  const selectedDeparture = selectedVehicleKey ? departuresByVehicle[selectedVehicleKey] : null;
+  const originFacilityId = activeTrip?.originFacilityId
+    ? String(activeTrip.originFacilityId)
+    : selectedDeparture?.facilityId
+    ? String(selectedDeparture.facilityId)
+    : manualOriginFacilityId;
+  const originFacility = useMemo(
+    () => facilities.find(facility => String(facility.id) === String(originFacilityId)) ?? null,
+    [facilities, originFacilityId]
+  );
+  const selectedDestination = useMemo(
+    () => destinations.find(destination => String(destination.id) === String(selectedDestinationId)) ?? null,
+    [destinations, selectedDestinationId]
+  );
+  const destinationTarget = useMemo(() => {
+    if (activeTrip) {
+      return {
+        latitude: activeTrip.destinationLatitude,
+        longitude: activeTrip.destinationLongitude,
+        label: activeTrip.destinationName ?? 'Aktif gorev hedefi'
+      };
+    }
+
+    if (!selectedDestination) {
+      return null;
+    }
+
+    const position = pointToLatLng(selectedDestination.location);
+
+    return position
+      ? {
+          latitude: position[0],
+          longitude: position[1],
+          label: selectedDestination.name
+        }
+      : null;
+  }, [activeTrip, selectedDestination]);
+  const totalDistanceMeters = (travelledRoute?.distanceMeters ?? 0) + (remainingRoute?.distanceMeters ?? 0);
+  const routeProgressPercent = totalDistanceMeters > 0
+    ? Math.min(100, Math.round(((travelledRoute?.distanceMeters ?? 0) / totalDistanceMeters) * 100))
+    : 0;
+
   const selectedProviderName = selectedProviderCode
     ? providers.find(provider => provider.code === selectedProviderCode)?.name ?? selectedProviderCode
-    : 'Tümü';
+    : 'Tumu';
 
   useEffect(() => {
     setSelectedPlate(null);
     setSearchTerm('');
     setHiddenVehicleTypes([]);
+    setManualOriginFacilityId('');
+    setSelectedDestinationId('');
+    setSelectedDriverId('');
+    setActiveTrip(null);
+    setRemainingRoute(null);
+    setTravelledRoute(null);
+    setRouteError(null);
+    setTripNotice(null);
   }, [selectedProviderCode]);
+
+  useEffect(() => {
+    fetchFacilities()
+      .then(setFacilities)
+      .catch(nextError => setRouteError(nextError.message));
+
+    fetchDestinations()
+      .then(setDestinations)
+      .catch(nextError => setRouteError(nextError.message));
+
+    fetchEmployees()
+      .then(setEmployees)
+      .catch(nextError => setRouteError(nextError.message));
+  }, []);
 
   useEffect(() => {
     if (
@@ -262,6 +429,165 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
       setSelectedPlate(null);
     }
   }, [filteredVehicles, selectedPlate]);
+
+  useEffect(() => {
+    if (!selectedVehicle) {
+      setActiveTrip(null);
+      return;
+    }
+
+    let isMounted = true;
+
+    fetchActiveVehicleTrips({
+      providerCode: selectedVehicle.provider,
+      plate: selectedVehicle.plate
+    })
+      .then(trips => {
+        if (isMounted) {
+          setActiveTrip(trips[0] ?? null);
+        }
+      })
+      .catch(nextError => {
+        if (isMounted) {
+          setRouteError(nextError.message);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    selectedVehicle?.lastLocationTime,
+    selectedVehicle?.plate,
+    selectedVehicle?.provider
+  ]);
+
+  useEffect(() => {
+    if (!selectedVehicle || !destinationTarget) {
+      setRemainingRoute(null);
+      setTravelledRoute(null);
+      return;
+    }
+
+    const requestId = routeRequestRef.current + 1;
+    routeRequestRef.current = requestId;
+    setIsRouteLoading(true);
+    setRouteError(null);
+
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        const nextRemainingRoute = await fetchRoute({
+          fromLat: selectedVehicle.latitude,
+          fromLon: selectedVehicle.longitude,
+          toLat: destinationTarget.latitude,
+          toLon: destinationTarget.longitude,
+          vehiclePlate: selectedVehicle.plate,
+          providerCode: selectedVehicle.provider
+        });
+
+        let nextTravelledRoute = null;
+
+        if (originFacility) {
+          nextTravelledRoute = await fetchRoute({
+            fromFacilityId: originFacility.id,
+            toLat: selectedVehicle.latitude,
+            toLon: selectedVehicle.longitude,
+            vehiclePlate: selectedVehicle.plate,
+            providerCode: selectedVehicle.provider
+          });
+        }
+
+        if (routeRequestRef.current !== requestId) {
+          return;
+        }
+
+        setRemainingRoute(nextRemainingRoute);
+        setTravelledRoute(nextTravelledRoute);
+      } catch (nextError) {
+        if (routeRequestRef.current === requestId) {
+          setRouteError(nextError.message);
+          setRemainingRoute(null);
+        }
+      } finally {
+        if (routeRequestRef.current === requestId) {
+          setIsRouteLoading(false);
+        }
+      }
+    }, 650);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [
+    destinationTarget?.latitude,
+    destinationTarget?.longitude,
+    originFacility?.id,
+    selectedVehicle?.latitude,
+    selectedVehicle?.longitude,
+    selectedVehicle?.plate,
+    selectedVehicle?.provider
+  ]);
+
+  const handleAssignTrip = async () => {
+    if (!selectedVehicle) {
+      return;
+    }
+
+    if (!selectedDestinationId) {
+      setRouteError('Gorev icin once hedef secin.');
+      return;
+    }
+
+    try {
+      const trip = await createVehicleTrip({
+        providerCode: selectedVehicle.provider,
+        vehiclePlate: selectedVehicle.plate,
+        driverId: selectedDriverId ? Number(selectedDriverId) : null,
+        assignedByEmployeeId: null,
+        originFacilityId: originFacilityId ? Number(originFacilityId) : null,
+        destinationId: Number(selectedDestinationId),
+        notes: null
+      });
+
+      setActiveTrip(trip);
+      setTripNotice('Gorev araca atandi.');
+      setRouteError(null);
+    } catch (nextError) {
+      setRouteError(nextError.message);
+    }
+  };
+
+  const handleCompleteTrip = async () => {
+    if (!activeTrip) {
+      return;
+    }
+
+    try {
+      const trip = await completeVehicleTrip(activeTrip.id);
+      setActiveTrip(null);
+      setRemainingRoute(null);
+      setTravelledRoute(null);
+      setTripNotice(`${trip.vehiclePlate} gorevi tamamlandi.`);
+      setRouteError(null);
+    } catch (nextError) {
+      setRouteError(nextError.message);
+    }
+  };
+
+  const handleCancelTrip = async () => {
+    if (!activeTrip) {
+      return;
+    }
+
+    try {
+      const trip = await cancelVehicleTrip(activeTrip.id);
+      setActiveTrip(null);
+      setRemainingRoute(null);
+      setTravelledRoute(null);
+      setTripNotice(`${trip.vehiclePlate} gorevi iptal edildi.`);
+      setRouteError(null);
+    } catch (nextError) {
+      setRouteError(nextError.message);
+    }
+  };
 
   return (
     <AppLayout
@@ -279,7 +605,7 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
           <div className="panel-heading">
             <div>
               <span>{municipalityName}</span>
-              <h2>Araçlar</h2>
+              <h2>Araclar</h2>
             </div>
             <strong>{filteredVehicles.length}</strong>
           </div>
@@ -291,10 +617,10 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
               onChange={event => setSelectedProviderCode(event.target.value)}
             >
               {providers.length === 0 ? (
-                <option value="">Tümü</option>
+                <option value="">Tumu</option>
               ) : (
                 <>
-                  <option value="">Tümü</option>
+                  <option value="">Tumu</option>
                   {providers
                     .filter(provider => provider.isActive)
                     .map(provider => (
@@ -328,13 +654,13 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
           {availableVehicleTypes.length > 0 && (
             <div className="type-filter">
               <div className="type-filter-heading">
-                <span>Araç türü</span>
+                <span>Arac turu</span>
                 <button
                   type="button"
                   onClick={() => setHiddenVehicleTypes([])}
                   disabled={hiddenVehicleTypes.length === 0}
                 >
-                  Tümü
+                  Tumu
                 </button>
               </div>
               <div className="type-filter-options">
@@ -361,7 +687,7 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
 
           <div className="panel-subheading">
             <span>{selectedProviderName}</span>
-            <strong>{filteredVehicles.length} araç</strong>
+            <strong>{filteredVehicles.length} arac</strong>
           </div>
 
           <div className="vehicle-list">
@@ -371,7 +697,7 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
                 <span>
                   {vehicles.length === 0
                     ? 'Bu sağlayıcı için kullanılabilir araç konumu yok.'
-                    : 'Seçili filtrelere uygun araç yok.'}
+                    : 'Secili filtrelere uygun arac yok.'}
                 </span>
               </div>
             ) : (
@@ -403,12 +729,27 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
           <VehicleMap
             vehicles={filteredVehicles}
             selectedVehicle={selectedVehicle}
+            destinationTarget={destinationTarget}
+            remainingRoute={remainingRoute}
+            travelledRoute={travelledRoute}
             onSelectVehicle={setSelectedPlate}
           />
           {error && (
             <div className="system-toast error">
               <strong>Sistem bildirimi</strong>
               <span>{error}</span>
+            </div>
+          )}
+          {routeError && (
+            <div className="system-toast error">
+              <strong>Rota bildirimi</strong>
+              <span>{routeError}</span>
+            </div>
+          )}
+          {tripNotice && (
+            <div className="system-toast success">
+              <strong>Gorev</strong>
+              <span>{tripNotice}</span>
             </div>
           )}
         </section>
@@ -457,6 +798,130 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
             </section>
 
             <section className="detail-section">
+              <h3>Guzergah</h3>
+              {activeTrip && (
+                <div className="active-trip-card">
+                  <div>
+                    <span>Aktif Gorev</span>
+                    <strong>{activeTrip.destinationName ?? destinationTarget?.label ?? 'Hedef'}</strong>
+                  </div>
+                  <em>{activeTrip.status}</em>
+                  <small>
+                    {activeTrip.driverName ? `${activeTrip.driverName} suruyor` : 'Sofor atanmadi'}
+                  </small>
+                </div>
+              )}
+
+              {!activeTrip && (
+                <div className="no-active-trip-note">
+                  <Route size={16} />
+                  <span>Bu arac icin su anda atanmis gorev yok.</span>
+                </div>
+              )}
+
+              <label className="field-stack panel-field compact-field">
+                <span>Çıkış Noktası</span>
+                <select
+                  value={originFacilityId}
+                  onChange={event => setManualOriginFacilityId(event.target.value)}
+                  disabled={Boolean(activeTrip || selectedDeparture)}
+                >
+                  <option value="">Mevcut konum</option>
+                  {facilities.map(facility => (
+                    <option key={facility.id} value={facility.id}>{facility.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              {selectedDeparture && (
+                <div className="route-origin-note">
+                  <Flag size={16} />
+                  <span>{selectedDeparture.facilityName} tesisinden çıktı.</span>
+                </div>
+              )}
+
+              {!activeTrip && !selectedDeparture && !originFacilityId && (
+                <div className="route-origin-note">
+                  <MapPin size={16} />
+                  <span>Rota aracin mevcut konumundan baslayacak.</span>
+                </div>
+              )}
+
+              <label className="field-stack panel-field compact-field">
+                <span>Varış Noktası</span>
+                <select
+                  value={activeTrip?.destinationId ? String(activeTrip.destinationId) : selectedDestinationId}
+                  onChange={event => setSelectedDestinationId(event.target.value)}
+                  disabled={Boolean(activeTrip)}
+                >
+                  <option value="">Kayıtlı hedef seç</option>
+                  {destinations.map(destination => (
+                    <option key={destination.id} value={destination.id}>{destination.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="field-stack panel-field compact-field">
+                <span>Sofor</span>
+                <select
+                  value={activeTrip?.driverId ? String(activeTrip.driverId) : selectedDriverId}
+                  onChange={event => setSelectedDriverId(event.target.value)}
+                  disabled={Boolean(activeTrip)}
+                >
+                  <option value="">Sofor sec</option>
+                  {employees
+                    .filter(employee => employee.isActive && employee.role === 'DRIVER')
+                    .map(employee => (
+                      <option key={employee.id} value={employee.id}>{employee.fullName}</option>
+                    ))}
+                </select>
+              </label>
+
+              {destinationTarget && (
+                <div className="route-live-summary">
+                  <div>
+                    <Clock3 size={18} />
+                    <span>Kalan Sure</span>
+                    <strong>{isRouteLoading ? 'Güncelleniyor' : formatDuration(remainingRoute?.durationSeconds)}</strong>
+                  </div>
+                  <div>
+                    <Navigation size={18} />
+                    <span>Kalan Mesafe</span>
+                    <strong>{formatDistance(remainingRoute?.distanceMeters)}</strong>
+                  </div>
+                  <div>
+                    <Route size={18} />
+                    <span>Gidilen</span>
+                    <strong>{formatDistance(travelledRoute?.distanceMeters)}</strong>
+                  </div>
+                </div>
+              )}
+
+              {remainingRoute && (
+                <div className="route-progress">
+                  <span style={{ width: `${routeProgressPercent}%` }} />
+                  <strong>{routeProgressPercent}%</strong>
+                </div>
+              )}
+
+              {activeTrip ? (
+                <div className="segmented-actions">
+                  <button type="button" onClick={handleCompleteTrip}>
+                    Tamamla
+                  </button>
+                  <button type="button" onClick={handleCancelTrip}>
+                    Iptal
+                  </button>
+                </div>
+              ) : (
+                <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!selectedDestinationId}>
+                  <Navigation size={18} />
+                  Gorevlendir
+                </button>
+              )}
+            </section>
+
+            <section className="detail-section">
               <h3>Konum</h3>
               <div className="details-grid">
                 <DetailItem icon={MapPin} label="Enlem" value={selectedVehicle.latitude} />
@@ -468,7 +933,7 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
               <h3>Sağlayıcı</h3>
               <div className="details-grid">
                 <DetailItem icon={MapPin} label="Takip Sağlayıcısı" value={selectedVehicle.provider} />
-                <DetailItem icon={CarFront} label="Araç Tipi" value={formatVehicleTypeLabel(selectedVehicle.vehicleType)} />
+                <DetailItem icon={CarFront} label="Arac Tipi" value={formatVehicleTypeLabel(selectedVehicle.vehicleType)} />
               </div>
             </section>
           </aside>
@@ -503,3 +968,4 @@ export default function App() {
     </div>
   );
 }
+
