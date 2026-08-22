@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Building2,
   ClipboardList,
@@ -9,6 +10,7 @@ import {
   UserCircle,
   Users
 } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const navigationItems = [
   { id: 'tracking', label: 'Canli Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
@@ -49,9 +51,47 @@ export function AppLayout({
   user,
   title
 }) {
+  const { updateProfile } = useAuth();
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    fullName: '',
+    phone: '',
+    email: ''
+  });
+  const [profileNotice, setProfileNotice] = useState(null);
+  const [profileError, setProfileError] = useState(null);
+  const [isProfileSaving, setIsProfileSaving] = useState(false);
   const visibleNavigationItems = navigationItems.filter(item =>
     !user?.role || item.roles.includes(user.role)
   );
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    setProfileForm({
+      fullName: user.fullName ?? '',
+      phone: user.phone ?? '',
+      email: user.email ?? ''
+    });
+  }, [user]);
+
+  const handleProfileSubmit = async event => {
+    event.preventDefault();
+    setProfileError(null);
+    setProfileNotice(null);
+    setIsProfileSaving(true);
+
+    try {
+      await updateProfile(profileForm);
+      setProfileNotice('Profil guncellendi.');
+    } catch (nextError) {
+      setProfileError(nextError.message);
+    } finally {
+      setIsProfileSaving(false);
+    }
+  };
 
   return (
     <div className="dashboard-shell">
@@ -97,7 +137,12 @@ export function AppLayout({
             <StatusPill status={connectionStatus} label={connectionLabel} />
             <time>{formatHeaderTime(lastUpdatedAt)}</time>
             {user && <span className="header-user-role">{user.fullName} · {user.role}</span>}
-            <button type="button" aria-label="Profil" title={user?.username ?? 'Profil'}>
+            <button
+              type="button"
+              aria-label="Profil"
+              title={user?.username ?? 'Profil'}
+              onClick={() => setIsProfileOpen(current => !current)}
+            >
               <UserCircle size={25} />
             </button>
             {onLogout && (
@@ -106,6 +151,55 @@ export function AppLayout({
               </button>
             )}
           </div>
+
+          {isProfileOpen && user && (
+            <form className="profile-popover" onSubmit={handleProfileSubmit}>
+              <div className="profile-popover-heading">
+                <div>
+                  <span>Profil</span>
+                  <strong>{user.username}</strong>
+                </div>
+                <em>{user.role}</em>
+              </div>
+
+              <label className="field-stack">
+                <span>Ad Soyad</span>
+                <input
+                  value={profileForm.fullName}
+                  onChange={event => setProfileForm(current => ({ ...current, fullName: event.target.value }))}
+                />
+              </label>
+
+              <label className="field-stack">
+                <span>Telefon</span>
+                <input
+                  value={profileForm.phone}
+                  onChange={event => setProfileForm(current => ({ ...current, phone: event.target.value }))}
+                />
+              </label>
+
+              <label className="field-stack">
+                <span>Email</span>
+                <input
+                  value={profileForm.email}
+                  onChange={event => setProfileForm(current => ({ ...current, email: event.target.value }))}
+                  type="email"
+                />
+              </label>
+
+              {profileNotice && <div className="inline-notice success">{profileNotice}</div>}
+              {profileError && <div className="inline-notice error">{profileError}</div>}
+
+              <div className="segmented-actions">
+                <button type="submit" disabled={isProfileSaving}>
+                  {isProfileSaving ? 'Kaydediliyor' : 'Kaydet'}
+                </button>
+                <button type="button" onClick={() => setIsProfileOpen(false)}>
+                  Kapat
+                </button>
+              </div>
+            </form>
+          )}
         </header>
 
         <main className="dashboard-content">{children}</main>

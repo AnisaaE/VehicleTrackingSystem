@@ -58,4 +58,37 @@ public sealed class AuthController : ControllerBase
 
         return Ok(user);
     }
+
+    [HttpPut("me")]
+    [Authorize]
+    [ProducesResponseType(typeof(AuthUserDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<AuthUserDto>> UpdateMe(
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var userId = User.GetUserId();
+
+        if (!userId.HasValue)
+        {
+            return Unauthorized(new ErrorResponse("User token is invalid."));
+        }
+
+        try
+        {
+            var user = await _authService.UpdateProfileAsync(userId.Value, request, cancellationToken);
+
+            if (user is null || !user.IsActive)
+            {
+                return Unauthorized(new ErrorResponse("User is inactive or no longer exists."));
+            }
+
+            return Ok(user);
+        }
+        catch (InvalidOperationException exception)
+        {
+            return BadRequest(new ErrorResponse(exception.Message));
+        }
+    }
 }

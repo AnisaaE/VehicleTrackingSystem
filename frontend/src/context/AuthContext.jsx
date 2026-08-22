@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { fetchCurrentUser, login, setAuthToken } from '../api';
+import { fetchCurrentUser, login, setAuthToken, updateCurrentUserProfile } from '../api';
 
 const USER_KEY = 'vehicle-tracking-auth-user';
 const AuthContext = createContext(null);
@@ -61,6 +61,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const updateProfile = useCallback(async profile => {
+    const updatedUser = await updateCurrentUserProfile(profile);
+    setUser(updatedUser);
+    localStorage.setItem(USER_KEY, JSON.stringify(updatedUser));
+    setError(null);
+    return updatedUser;
+  }, []);
+
   const value = useMemo(() => ({
     error,
     isAdmin: user?.role === 'ADMIN',
@@ -71,8 +79,9 @@ export function AuthProvider({ children }) {
     setError,
     signIn,
     signOut,
+    updateProfile,
     user
-  }), [error, isInitializing, signIn, signOut, user]);
+  }), [error, isInitializing, signIn, signOut, updateProfile, user]);
 
   return (
     <AuthContext.Provider value={value}>

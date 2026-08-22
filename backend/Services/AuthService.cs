@@ -66,11 +66,44 @@ public sealed class AuthService : IAuthService
         return account is null ? null : ToAuthUserDto(account);
     }
 
+    public async Task<AuthUserDto?> UpdateProfileAsync(
+        int userId,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.FullName))
+        {
+            throw new InvalidOperationException("Full name is required.");
+        }
+
+        var account = await _dbContext.UserAccounts
+            .Include(user => user.Employee)
+            .FirstOrDefaultAsync(user => user.Id == userId, cancellationToken);
+
+        if (account is null)
+        {
+            return null;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        account.Employee.FullName = request.FullName.Trim();
+        account.Employee.Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim();
+        account.Employee.Email = string.IsNullOrWhiteSpace(request.Email) ? null : request.Email.Trim();
+        account.Employee.UpdatedAt = now;
+        account.UpdatedAt = now;
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return ToAuthUserDto(account);
+    }
+
     private static AuthUserDto ToAuthUserDto(Entities.UserAccount account) =>
         new(
             account.Id,
             account.EmployeeId,
             account.Employee.FullName,
+            account.Employee.Phone,
+            account.Employee.Email,
             account.Username,
             account.Role,
             account.IsActive && account.Employee.IsActive);

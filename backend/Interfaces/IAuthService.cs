@@ -11,4 +11,9 @@ public interface IAuthService
     Task<AuthUserDto?> GetCurrentUserAsync(
         int userId,
         CancellationToken cancellationToken = default);
+
+    Task<AuthUserDto?> UpdateProfileAsync(
+        int userId,
+        UpdateProfileRequest request,
+        CancellationToken cancellationToken = default);
 }

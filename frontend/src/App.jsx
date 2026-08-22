@@ -303,6 +303,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
   const [activeTrip, setActiveTrip] = useState(null);
   const [remainingRoute, setRemainingRoute] = useState(null);
   const [travelledRoute, setTravelledRoute] = useState(null);
+  const [displayedRemainingDurationSeconds, setDisplayedRemainingDurationSeconds] = useState(null);
   const [routeError, setRouteError] = useState(null);
   const [tripNotice, setTripNotice] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
@@ -409,6 +410,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
     setActiveTrip(null);
     setRemainingRoute(null);
     setTravelledRoute(null);
+    setDisplayedRemainingDurationSeconds(null);
     setRouteError(null);
     setTripNotice(null);
   }, [selectedProviderCode]);
@@ -474,6 +476,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
     if (!selectedVehicle || !destinationTarget) {
       setRemainingRoute(null);
       setTravelledRoute(null);
+      setDisplayedRemainingDurationSeconds(null);
       return;
     }
 
@@ -511,10 +514,25 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
 
         setRemainingRoute(nextRemainingRoute);
         setTravelledRoute(nextTravelledRoute);
+        setDisplayedRemainingDurationSeconds(currentDurationSeconds => {
+          if (!Number.isFinite(nextRemainingRoute?.durationSeconds)) {
+            return currentDurationSeconds;
+          }
+
+          const nextMinutes = Math.max(1, Math.round(nextRemainingRoute.durationSeconds / 60));
+          const currentMinutes = Number.isFinite(currentDurationSeconds)
+            ? Math.max(1, Math.round(currentDurationSeconds / 60))
+            : null;
+
+          return currentMinutes === nextMinutes
+            ? currentDurationSeconds
+            : nextRemainingRoute.durationSeconds;
+        });
       } catch (nextError) {
         if (routeRequestRef.current === requestId) {
           setRouteError(nextError.message);
           setRemainingRoute(null);
+          setDisplayedRemainingDurationSeconds(null);
         }
       } finally {
         if (routeRequestRef.current === requestId) {
@@ -532,6 +550,14 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
     selectedVehicle?.longitude,
     selectedVehicle?.plate,
     selectedVehicle?.provider
+  ]);
+
+  useEffect(() => {
+    setDisplayedRemainingDurationSeconds(null);
+  }, [
+    destinationTarget?.latitude,
+    destinationTarget?.longitude,
+    selectedVehicleKey
   ]);
 
   const handleAssignTrip = async () => {
@@ -573,6 +599,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
       setActiveTrip(null);
       setRemainingRoute(null);
       setTravelledRoute(null);
+      setDisplayedRemainingDurationSeconds(null);
       setTripNotice(`${trip.vehiclePlate} gorevi tamamlandi.`);
       setRouteError(null);
     } catch (nextError) {
@@ -590,6 +617,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
       setActiveTrip(null);
       setRemainingRoute(null);
       setTravelledRoute(null);
+      setDisplayedRemainingDurationSeconds(null);
       setTripNotice(`${trip.vehiclePlate} gorevi iptal edildi.`);
       setRouteError(null);
     } catch (nextError) {
@@ -896,7 +924,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
                   <div>
                     <Clock3 size={18} />
                     <span>Kalan Sure</span>
-                    <strong>{isRouteLoading ? 'Güncelleniyor' : formatDuration(remainingRoute?.durationSeconds)}</strong>
+                    <strong>{formatDuration(displayedRemainingDurationSeconds)}</strong>
                   </div>
                   <div>
                     <Navigation size={18} />
@@ -1064,4 +1092,3 @@ export default function App() {
     </div>
   );
 }
-

@@ -29,7 +29,6 @@ export function LoginPage({ municipalityName }) {
         <div className="login-brand">
           <MapPinned size={30} />
           <div>
-            <span>{municipalityName}</span>
             <h1>Vehicle Tracking</h1>
           </div>
         </div>

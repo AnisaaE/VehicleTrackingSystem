@@ -62,6 +62,22 @@ export async function fetchCurrentUser() {
   return response.json();
 }
 
+export async function updateCurrentUserProfile(profile) {
+  const response = await apiFetch('/api/auth/me', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(profile)
+  });
+
+  if (!response.ok) {
+    throw await readError(response, 'Profil guncellenemedi.');
+  }
+
+  return response.json();
+}
+
 export async function fetchUsers() {
   const response = await apiFetch('/api/users');
 
