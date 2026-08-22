@@ -269,7 +269,7 @@ function MapClickTarget({ enabled, onTargetSelected }) {
   return null;
 }
 
-export function MapsPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+export function MapsPage({ currentUser, municipalityName, onLogout }) {
   const canEditMaps = currentUser?.role === 'ADMIN' || currentUser?.role === 'DISPATCHER';
   const canDeleteMapPoints = currentUser?.role === 'ADMIN';
   const [facilities, setFacilities] = useState([]);
@@ -614,7 +614,6 @@ export function MapsPage({ currentUser, municipalityName, onLogout, onNavigate }
       headerIcon={MapIcon}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      onNavigate={onNavigate}
       title="Haritalar"
       user={currentUser}
     >

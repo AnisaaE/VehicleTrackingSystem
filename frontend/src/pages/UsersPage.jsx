@@ -5,7 +5,7 @@ import { AppLayout } from '../components/AppLayout';
 
 const roles = ['ADMIN', 'DISPATCHER', 'DRIVER', 'VIEWER'];
 
-export function UsersPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+export function UsersPage({ currentUser, municipalityName, onLogout }) {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({
     username: '',
@@ -69,7 +69,6 @@ export function UsersPage({ currentUser, municipalityName, onLogout, onNavigate 
       headerIcon={Users}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      onNavigate={onNavigate}
       title="Kullanicilar"
       user={currentUser}
     >

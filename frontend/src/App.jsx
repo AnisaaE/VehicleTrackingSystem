@@ -14,6 +14,7 @@ import {
   Wifi
 } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { Navigate, Route as RouterRoute, Routes, useLocation, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { appConfig } from './config';
 import {
@@ -277,7 +278,7 @@ function DetailItem({ icon: Icon, label, value }) {
   );
 }
 
-function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
   const canManageTrips = currentUser?.role === 'ADMIN' || currentUser?.role === 'DISPATCHER';
   const [selectedProviderCode, setSelectedProviderCode] = useState(
     appConfig.defaultProviderCode
@@ -634,7 +635,6 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
       lastUpdatedAt={lastUpdatedAt}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      onNavigate={onNavigate}
       title="Canlı Takip"
       user={currentUser}
     >
@@ -991,9 +991,10 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate 
 }
 
 export default function App() {
-  const [activePage, setActivePage] = useState('tracking');
   const [runtimeConfig, setRuntimeConfig] = useState(appConfig);
   const { isInitializing, isSignedIn, signOut, user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchAppConfig()
@@ -1008,24 +1009,10 @@ export default function App() {
       });
   }, []);
 
-  useEffect(() => {
-    if (!user) {
-      return;
-    }
-
-    if (user.role === 'DRIVER') {
-      setActivePage('driverTrips');
-      return;
-    }
-
-    if (activePage === 'driverTrips') {
-      setActivePage('tracking');
-    }
-
-    if (activePage === 'users' && user.role !== 'ADMIN') {
-      setActivePage('tracking');
-    }
-  }, [activePage, user]);
+  const handleLogout = useCallback(() => {
+    signOut();
+    navigate('/login', { replace: true });
+  }, [navigate, signOut]);
 
   if (isInitializing) {
     return (
@@ -1037,58 +1024,81 @@ export default function App() {
 
   if (!isSignedIn) {
     return (
-      <LoginPage municipalityName={runtimeConfig.municipalityName} />
+      <Routes>
+        <RouterRoute path="/login" element={<LoginPage municipalityName={runtimeConfig.municipalityName} />} />
+        <RouterRoute path="*" element={<Navigate to="/login" replace state={{ from: location }} />} />
+      </Routes>
     );
   }
 
-  const effectiveActivePage = user?.role === 'DRIVER'
-    ? 'driverTrips'
-    : activePage === 'users' && user?.role !== 'ADMIN'
-    ? 'tracking'
-    : activePage;
+  const defaultPath = user?.role === 'DRIVER' ? '/my-trips' : '/tracking';
+  const requireRoles = (roles, element) =>
+    roles.includes(user?.role)
+      ? element
+      : <Navigate to={defaultPath} replace />;
 
   return (
     <div className="root-shell">
-      {effectiveActivePage === 'tracking' && (
-        <LiveTrackingPage
-          currentUser={user}
-          municipalityName={runtimeConfig.municipalityName}
-          onLogout={signOut}
-          onNavigate={setActivePage}
+      <Routes>
+        <RouterRoute path="/" element={<Navigate to={defaultPath} replace />} />
+        <RouterRoute path="/login" element={<Navigate to={defaultPath} replace />} />
+        <RouterRoute
+          path="/tracking"
+          element={requireRoles(
+            ['ADMIN', 'DISPATCHER', 'VIEWER'],
+            <LiveTrackingPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
         />
-      )}
-      {effectiveActivePage === 'nearest' && (
-        <NearestVehiclesPage
-          currentUser={user}
-          municipalityName={runtimeConfig.municipalityName}
-          onLogout={signOut}
-          onNavigate={setActivePage}
+        <RouterRoute
+          path="/nearest"
+          element={requireRoles(
+            ['ADMIN', 'DISPATCHER', 'VIEWER'],
+            <NearestVehiclesPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
         />
-      )}
-      {effectiveActivePage === 'maps' && (
-        <MapsPage
-          currentUser={user}
-          municipalityName={runtimeConfig.municipalityName}
-          onLogout={signOut}
-          onNavigate={setActivePage}
+        <RouterRoute
+          path="/maps"
+          element={requireRoles(
+            ['ADMIN', 'DISPATCHER', 'VIEWER'],
+            <MapsPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
         />
-      )}
-      {effectiveActivePage === 'driverTrips' && (
-        <DriverTripsPage
-          currentUser={user}
-          municipalityName={runtimeConfig.municipalityName}
-          onLogout={signOut}
-          onNavigate={setActivePage}
+        <RouterRoute
+          path="/my-trips"
+          element={requireRoles(
+            ['DRIVER'],
+            <DriverTripsPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
         />
-      )}
-      {effectiveActivePage === 'users' && user?.role === 'ADMIN' && (
-        <UsersPage
-          currentUser={user}
-          municipalityName={runtimeConfig.municipalityName}
-          onLogout={signOut}
-          onNavigate={setActivePage}
+        <RouterRoute
+          path="/users"
+          element={requireRoles(
+            ['ADMIN'],
+            <UsersPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
         />
-      )}
+        <RouterRoute path="*" element={<Navigate to={defaultPath} replace />} />
+      </Routes>
     </div>
   );
 }

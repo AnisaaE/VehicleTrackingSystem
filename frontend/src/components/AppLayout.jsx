@@ -10,14 +10,15 @@ import {
   UserCircle,
   Users
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const navigationItems = [
-  { id: 'tracking', label: 'Canli Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
-  { id: 'nearest', label: 'Yakin Arac', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
-  { id: 'maps', label: 'Haritalar', icon: Map, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
-  { id: 'driverTrips', label: 'Gorevlerim', icon: ClipboardList, roles: ['DRIVER'] },
-  { id: 'users', label: 'Kullanicilar', icon: Users, roles: ['ADMIN'] },
+  { id: 'tracking', path: '/tracking', label: 'Canli Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'nearest', path: '/nearest', label: 'Yakin Arac', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'maps', path: '/maps', label: 'Haritalar', icon: Map, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'driverTrips', path: '/my-trips', label: 'Gorevlerim', icon: ClipboardList, roles: ['DRIVER'] },
+  { id: 'users', path: '/users', label: 'Kullanicilar', icon: Users, roles: ['ADMIN'] },
 ];
 
 function formatHeaderTime(value) {
@@ -47,7 +48,6 @@ export function AppLayout({
   lastUpdatedAt,
   municipalityName,
   onLogout,
-  onNavigate,
   user,
   title
 }) {
@@ -103,19 +103,17 @@ export function AppLayout({
         <nav className="sidebar-nav" aria-label="Ana menu">
           {visibleNavigationItems.map(item => {
             const Icon = item.icon;
-            const isActive = item.id === activePage;
 
             return (
-              <button
+              <NavLink
                 key={item.id}
-                className={isActive ? 'active' : ''}
-                type="button"
-                onClick={() => onNavigate?.(item.id)}
+                className={({ isActive }) => isActive || item.id === activePage ? 'active' : ''}
+                to={item.path}
                 title={item.label}
               >
                 <Icon size={19} />
                 <span>{item.label}</span>
-              </button>
+              </NavLink>
             );
           })}
         </nav>

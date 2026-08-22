@@ -30,7 +30,7 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
-export function DriverTripsPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
   const [trips, setTrips] = useState([]);
   const [error, setError] = useState(null);
   const [notice, setNotice] = useState(null);
@@ -75,7 +75,6 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout, onNav
       headerIcon={Route}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      onNavigate={onNavigate}
       title="Benim Gorevlerim"
       user={currentUser}
     >

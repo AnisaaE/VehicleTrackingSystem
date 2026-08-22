@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { LockKeyhole, LogIn, MapPinned } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export function LoginPage({ municipalityName }) {
   const { signIn } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -15,7 +18,9 @@ export function LoginPage({ municipalityName }) {
     setError(null);
 
     try {
-      await signIn({ username, password });
+      const user = await signIn({ username, password });
+      const fallbackPath = user.role === 'DRIVER' ? '/my-trips' : '/tracking';
+      navigate(location.state?.from?.pathname ?? fallbackPath, { replace: true });
     } catch (nextError) {
       setError(nextError.message);
     } finally {

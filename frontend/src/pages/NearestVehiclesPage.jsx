@@ -297,7 +297,7 @@ function NearbyMap({
   );
 }
 
-export function NearestVehiclesPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+export function NearestVehiclesPage({ currentUser, municipalityName, onLogout }) {
   const [selectedProviderCode, setSelectedProviderCode] = useState(appConfig.defaultProviderCode);
   const { vehicles, providers, connectionStatus, lastUpdatedAt, error: vehicleError } =
     useVehicleLocations(selectedProviderCode);
@@ -513,7 +513,6 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout, o
       lastUpdatedAt={lastUpdatedAt}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      onNavigate={onNavigate}
       title="Yakindaki Araclar"
       user={currentUser}
     >
