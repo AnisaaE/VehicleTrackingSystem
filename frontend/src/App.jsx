@@ -26,7 +26,8 @@ import {
   fetchDestinations,
   fetchEmployees,
   fetchFacilities,
-  fetchRoute
+  fetchRoute,
+  geocodeAddress
 } from './api';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
@@ -74,6 +75,17 @@ const vehicleTypeLabels = {
   WORK_MACHINE: 'İş Makinesi',
   SWEEPER: 'Süpürge Aracı'
 };
+
+const routeColors = [
+  '#2563eb',
+  '#dc2626',
+  '#16a34a',
+  '#ca8a04',
+  '#7c3aed',
+  '#0891b2',
+  '#ea580c',
+  '#be123c'
+];
 
 function formatDateTime(value) {
   if (!value) {
@@ -158,6 +170,25 @@ function getVehicleIcon(vehicle, isSelected = false) {
   return createVehicleIcon(icon.options.iconUrl, 'selected-vehicle-marker');
 }
 
+function getVehicleIconUrl(vehicle) {
+  const icon = vehicleIcons[normalizeVehicleType(vehicle.vehicleType)] ?? vehicleIcons.DEFAULT;
+  return icon.options.iconUrl;
+}
+
+function getActiveVehicleIcon(vehicle, routeColor, isSelected = false) {
+  return L.divIcon({
+    className: `active-route-vehicle-marker ${isSelected ? 'selected' : ''}`,
+    html: `
+      <span style="--route-color:${routeColor}">
+        <img src="${getVehicleIconUrl(vehicle)}" alt="" />
+      </span>
+    `,
+    iconSize: [54, 54],
+    iconAnchor: [27, 27],
+    popupAnchor: [0, -28]
+  });
+}
+
 function formatVehicleTypeLabel(value) {
   const normalizedType = normalizeVehicleType(value);
 
@@ -175,26 +206,12 @@ function formatConnectionStatus(status) {
   return labels[status] ?? status;
 }
 
-function MapFocus({ vehicles, selectedVehicle }) {
+function MapFocus({ vehicles }) {
   const map = useMap();
-  const previousSelectedPlate = useRef(null);
   const hasFitInitialBounds = useRef(false);
 
   useEffect(() => {
-    const selectedPlate = selectedVehicle?.plate ?? null;
-
-    if (selectedVehicle) {
-      if (previousSelectedPlate.current !== selectedPlate) {
-        map.flyTo([selectedVehicle.latitude, selectedVehicle.longitude], 15, {
-          duration: 0.8
-        });
-      }
-
-      previousSelectedPlate.current = selectedPlate;
-      return;
-    }
-
-    if (vehicles.length > 0 && (!hasFitInitialBounds.current || previousSelectedPlate.current)) {
+    if (vehicles.length > 0 && !hasFitInitialBounds.current) {
       const bounds = L.latLngBounds(
         vehicles.map(vehicle => [vehicle.latitude, vehicle.longitude])
       );
@@ -206,16 +223,21 @@ function MapFocus({ vehicles, selectedVehicle }) {
 
       hasFitInitialBounds.current = true;
     }
-
-    previousSelectedPlate.current = null;
-  }, [map, selectedVehicle?.plate, vehicles.length]);
+  }, [map, vehicles]);
 
   return null;
 }
 
-function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRoute, travelledRoute, onSelectVehicle }) {
+function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRoute, travelledRoute, activeTripRoutes, onSelectVehicle }) {
   const remainingPositions = routeToPositions(remainingRoute);
-  const travelledPositions = routeToPositions(travelledRoute);
+  const visibleVehicleKeys = new Set(vehicles.map(vehicle => `${vehicle.provider}:${normalizePlate(vehicle.plate)}`));
+  const selectedVehicleKey = selectedVehicle ? `${selectedVehicle.provider}:${normalizePlate(selectedVehicle.plate)}` : null;
+  const routeColorByVehicleKey = new Map(
+    activeTripRoutes.map(routeItem => [
+      routeItem.vehicleKey,
+      routeItem.color
+    ])
+  );
 
   return (
     <MapContainer
@@ -231,9 +253,34 @@ function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRou
       />
       <ZoomControl position="topright" />
       <MapFocus vehicles={vehicles} selectedVehicle={selectedVehicle} />
-      {travelledPositions.length > 0 && (
-        <Polyline positions={travelledPositions} pathOptions={{ color: '#64748b', dashArray: '7 8', weight: 4 }} />
-      )}
+      {activeTripRoutes
+        .filter(routeItem => visibleVehicleKeys.has(routeItem.vehicleKey))
+        .map(routeItem => {
+          const positions = routeToPositions(routeItem.route);
+          const isSelectedTrip = selectedVehicleKey === routeItem.vehicleKey;
+
+          if (positions.length === 0) {
+            return null;
+          }
+
+          return (
+            <Polyline
+              key={routeItem.trip.id}
+              positions={positions}
+              pathOptions={{
+                color: routeItem.color,
+                opacity: isSelectedTrip ? 0.95 : 0.68,
+                weight: isSelectedTrip ? 6 : 4
+              }}
+            >
+              <Popup>
+                <strong>{routeItem.trip.vehiclePlate}</strong>
+                <span>{routeItem.trip.destinationName ?? 'Hedef'}</span>
+                <span>{formatDuration(routeItem.route.durationSeconds)}</span>
+              </Popup>
+            </Polyline>
+          );
+        })}
       {remainingPositions.length > 0 && (
         <Polyline positions={remainingPositions} pathOptions={{ color: '#2563eb', weight: 5 }} />
       )}
@@ -242,13 +289,15 @@ function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRou
       )}
       {vehicles.map(vehicle => {
         const vehicleKey = getVehicleKey(vehicle);
+        const normalizedVehicleKey = `${vehicle.provider}:${normalizePlate(vehicle.plate)}`;
         const isSelected = selectedVehicle && getVehicleKey(selectedVehicle) === vehicleKey;
+        const routeColor = routeColorByVehicleKey.get(normalizedVehicleKey);
 
         return (
           <Marker
             key={vehicleKey}
             position={[vehicle.latitude, vehicle.longitude]}
-            icon={getVehicleIcon(vehicle, isSelected)}
+            icon={routeColor ? getActiveVehicleIcon(vehicle, routeColor, isSelected) : getVehicleIcon(vehicle, isSelected)}
             zIndexOffset={isSelected ? 1000 : 0}
             eventHandlers={{
               click: () => onSelectVehicle(vehicleKey)
@@ -300,8 +349,13 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
   const [employees, setEmployees] = useState([]);
   const [manualOriginFacilityId, setManualOriginFacilityId] = useState('');
   const [selectedDestinationId, setSelectedDestinationId] = useState('');
+  const [destinationSearchTerm, setDestinationSearchTerm] = useState('');
+  const [destinationSuggestions, setDestinationSuggestions] = useState([]);
+  const [manualDestinationTarget, setManualDestinationTarget] = useState(null);
   const [selectedDriverId, setSelectedDriverId] = useState('');
   const [activeTrip, setActiveTrip] = useState(null);
+  const [activeTrips, setActiveTrips] = useState([]);
+  const [activeTripRoutes, setActiveTripRoutes] = useState([]);
   const [remainingRoute, setRemainingRoute] = useState(null);
   const [travelledRoute, setTravelledRoute] = useState(null);
   const [displayedRemainingDurationSeconds, setDisplayedRemainingDurationSeconds] = useState(null);
@@ -309,6 +363,8 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
   const [tripNotice, setTripNotice] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const routeRequestRef = useRef(0);
+  const activeTripsRef = useRef([]);
+  const vehiclesRef = useRef([]);
 
   const availableVehicleTypes = useMemo(() => {
     const typesByCode = new Map();
@@ -331,6 +387,14 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       first.label.localeCompare(second.label, 'tr')
     );
   }, [vehicles]);
+
+  useEffect(() => {
+    vehiclesRef.current = vehicles;
+  }, [vehicles]);
+
+  useEffect(() => {
+    activeTripsRef.current = activeTrips;
+  }, [activeTrips]);
 
   const toggleVehicleType = typeCode => {
     setHiddenVehicleTypes(currentHiddenTypes =>
@@ -379,7 +443,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
     }
 
     if (!selectedDestination) {
-      return null;
+      return manualDestinationTarget;
     }
 
     const position = pointToLatLng(selectedDestination.location);
@@ -390,8 +454,8 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
           longitude: position[1],
           label: selectedDestination.name
         }
-      : null;
-  }, [activeTrip, selectedDestination]);
+      : manualDestinationTarget;
+  }, [activeTrip, manualDestinationTarget, selectedDestination]);
   const totalDistanceMeters = (travelledRoute?.distanceMeters ?? 0) + (remainingRoute?.distanceMeters ?? 0);
   const routeProgressPercent = totalDistanceMeters > 0
     ? Math.min(100, Math.round(((travelledRoute?.distanceMeters ?? 0) / totalDistanceMeters) * 100))
@@ -407,8 +471,13 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
     setHiddenVehicleTypes([]);
     setManualOriginFacilityId('');
     setSelectedDestinationId('');
+    setDestinationSearchTerm('');
+    setDestinationSuggestions([]);
+    setManualDestinationTarget(null);
     setSelectedDriverId('');
     setActiveTrip(null);
+    setActiveTrips([]);
+    setActiveTripRoutes([]);
     setRemainingRoute(null);
     setTravelledRoute(null);
     setDisplayedRemainingDurationSeconds(null);
@@ -440,6 +509,113 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       setSelectedPlate(null);
     }
   }, [filteredVehicles, selectedPlate]);
+
+  useEffect(() => {
+    if (!canManageTrips || activeTrip || destinationSearchTerm.trim().length < 3) {
+      setDestinationSuggestions([]);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      geocodeAddress(destinationSearchTerm)
+        .then(setDestinationSuggestions)
+        .catch(nextError => setRouteError(nextError.message));
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTrip, canManageTrips, destinationSearchTerm]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadActiveTrips = async () => {
+      try {
+        const trips = await fetchActiveVehicleTrips();
+
+        if (isMounted) {
+          setActiveTrips(trips);
+        }
+      } catch (nextError) {
+        if (isMounted) {
+          setRouteError(nextError.message);
+        }
+      }
+    };
+
+    loadActiveTrips();
+    const intervalId = window.setInterval(loadActiveTrips, 12000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [selectedProviderCode]);
+
+  useEffect(() => {
+    if (activeTrips.length === 0) {
+      setActiveTripRoutes([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const refreshActiveTripRoutes = async () => {
+      const currentActiveTrips = activeTripsRef.current;
+      const currentVehicles = vehiclesRef.current;
+
+      if (currentActiveTrips.length === 0 || currentVehicles.length === 0) {
+        if (isMounted) {
+          setActiveTripRoutes([]);
+        }
+        return;
+      }
+
+      const routeResults = await Promise.all(
+        currentActiveTrips.map(async (trip, index) => {
+          const vehicle = currentVehicles.find(currentVehicle =>
+            currentVehicle.provider === trip.providerCode &&
+            normalizePlate(currentVehicle.plate) === normalizePlate(trip.vehiclePlate)
+          );
+
+          if (!vehicle) {
+            return null;
+          }
+
+          try {
+            const route = await fetchRoute({
+              fromLat: vehicle.latitude,
+              fromLon: vehicle.longitude,
+              toLat: trip.destinationLatitude,
+              toLon: trip.destinationLongitude,
+              vehiclePlate: vehicle.plate,
+              providerCode: vehicle.provider
+            });
+
+            return {
+              color: routeColors[index % routeColors.length],
+              route,
+              trip,
+              vehicleKey: `${trip.providerCode}:${normalizePlate(trip.vehiclePlate)}`
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (isMounted) {
+        setActiveTripRoutes(routeResults.filter(Boolean));
+      }
+    };
+
+    refreshActiveTripRoutes();
+    const intervalId = window.setInterval(refreshActiveTripRoutes, 12000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [activeTrips.length]);
 
   useEffect(() => {
     if (!selectedVehicle) {
@@ -566,7 +742,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       return;
     }
 
-    if (!selectedDestinationId) {
+    if (!selectedDestinationId && !manualDestinationTarget) {
       setRouteError('Gorev icin once hedef secin.');
       return;
     }
@@ -578,11 +754,17 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
         driverId: selectedDriverId ? Number(selectedDriverId) : null,
         assignedByEmployeeId: null,
         originFacilityId: originFacilityId ? Number(originFacilityId) : null,
-        destinationId: Number(selectedDestinationId),
+        destinationId: selectedDestinationId ? Number(selectedDestinationId) : null,
+        destinationLatitude: selectedDestinationId ? null : manualDestinationTarget?.latitude,
+        destinationLongitude: selectedDestinationId ? null : manualDestinationTarget?.longitude,
         notes: null
       });
 
       setActiveTrip(trip);
+      setActiveTrips(currentTrips => [
+        trip,
+        ...currentTrips.filter(currentTrip => currentTrip.id !== trip.id)
+      ]);
       setTripNotice('Gorev araca atandi.');
       setRouteError(null);
     } catch (nextError) {
@@ -598,6 +780,8 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
     try {
       const trip = await completeVehicleTrip(activeTrip.id);
       setActiveTrip(null);
+      setActiveTrips(currentTrips => currentTrips.filter(currentTrip => currentTrip.id !== trip.id));
+      setActiveTripRoutes(currentRoutes => currentRoutes.filter(routeItem => routeItem.trip.id !== trip.id));
       setRemainingRoute(null);
       setTravelledRoute(null);
       setDisplayedRemainingDurationSeconds(null);
@@ -616,6 +800,8 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
     try {
       const trip = await cancelVehicleTrip(activeTrip.id);
       setActiveTrip(null);
+      setActiveTrips(currentTrips => currentTrips.filter(currentTrip => currentTrip.id !== trip.id));
+      setActiveTripRoutes(currentRoutes => currentRoutes.filter(routeItem => routeItem.trip.id !== trip.id));
       setRemainingRoute(null);
       setTravelledRoute(null);
       setDisplayedRemainingDurationSeconds(null);
@@ -770,6 +956,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
             destinationTarget={destinationTarget}
             remainingRoute={remainingRoute}
             travelledRoute={travelledRoute}
+            activeTripRoutes={activeTripRoutes}
             onSelectVehicle={setSelectedPlate}
           />
           {error && (
@@ -826,11 +1013,6 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                   icon={Power}
                   label="Kontak"
                   value={selectedVehicle.ignitionOn ? 'Açık' : 'Kapalı'}
-                />
-                <DetailItem
-                  icon={Wifi}
-                  label="Son Konum"
-                  value={formatDateTime(selectedVehicle.lastLocationTime)}
                 />
               </div>
             </section>
@@ -891,7 +1073,12 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                     <span>Varış Noktası</span>
                     <select
                       value={activeTrip?.destinationId ? String(activeTrip.destinationId) : selectedDestinationId}
-                      onChange={event => setSelectedDestinationId(event.target.value)}
+                      onChange={event => {
+                        setSelectedDestinationId(event.target.value);
+                        setManualDestinationTarget(null);
+                        setDestinationSearchTerm('');
+                        setDestinationSuggestions([]);
+                      }}
                       disabled={Boolean(activeTrip)}
                     >
                       <option value="">Kayıtlı hedef seç</option>
@@ -900,6 +1087,70 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                       ))}
                     </select>
                   </label>
+
+                  {!activeTrip && (
+                    <div className="field-stack compact-field">
+                      <span>Adres Ara</span>
+                      <div className="inline-input">
+                        <Search size={18} />
+                        <input
+                          value={destinationSearchTerm}
+                          onChange={event => {
+                            setDestinationSearchTerm(event.target.value);
+                            setSelectedDestinationId('');
+                          }}
+                          placeholder="Mahalle, cadde veya hastane ara"
+                        />
+                        {destinationSearchTerm && (
+                          <button
+                            className="plain-icon-button"
+                            type="button"
+                            onClick={() => {
+                              setDestinationSearchTerm('');
+                              setDestinationSuggestions([]);
+                              setManualDestinationTarget(null);
+                            }}
+                            aria-label="Temizle"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                      {destinationSuggestions.length > 0 && (
+                        <div className="suggestion-list compact-suggestion-list">
+                          {destinationSuggestions.map(suggestion => (
+                            <button
+                              key={`${suggestion.latitude}:${suggestion.longitude}`}
+                              type="button"
+                              onClick={() => {
+                                setManualDestinationTarget({
+                                  latitude: suggestion.latitude,
+                                  longitude: suggestion.longitude,
+                                  label: suggestion.displayName
+                                });
+                                setDestinationSearchTerm(suggestion.displayName);
+                                setDestinationSuggestions([]);
+                                setSelectedDestinationId('');
+                              }}
+                            >
+                              <MapPin size={16} />
+                              <span>{suggestion.displayName}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {manualDestinationTarget && !activeTrip && (
+                    <div className="address-card compact-address-card">
+                      <MapPin size={18} />
+                      <div>
+                        <strong>{manualDestinationTarget.label}</strong>
+                        <span>{manualDestinationTarget.latitude.toFixed(5)}, {manualDestinationTarget.longitude.toFixed(5)}</span>
+                      </div>
+                    </div>
+                  )}
 
                   <label className="field-stack panel-field compact-field">
                     <span>Sofor</span>
@@ -956,7 +1207,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                   </button>
                 </div>
               ) : canManageTrips ? (
-                <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!selectedDestinationId}>
+                <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!destinationTarget}>
                   <Navigation size={18} />
                   Gorevlendir
                 </button>
@@ -973,6 +1224,11 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
               <div className="details-grid">
                 <DetailItem icon={MapPin} label="Enlem" value={selectedVehicle.latitude} />
                 <DetailItem icon={MapPin} label="Boylam" value={selectedVehicle.longitude} />
+                <DetailItem
+                  icon={Wifi}
+                  label="Son Konum"
+                  value={formatDateTime(selectedVehicle.lastLocationTime)}
+                />
               </div>
             </section>
 

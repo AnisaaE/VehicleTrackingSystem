@@ -259,6 +259,11 @@ select {
   gap: 6px;
 }
 
+.compact-suggestion-list {
+  max-height: 190px;
+  overflow-y: auto;
+}
+
 .suggestion-list button,
 .drawer-actions button,
 .facility-editor button {
@@ -1475,6 +1480,37 @@ h2 {
   transform: scale(1.08);
 }
 
+.active-route-vehicle-marker {
+  background: transparent;
+}
+
+.active-route-vehicle-marker span {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 4px solid var(--route-color);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.95),
+    0 10px 22px rgba(15, 23, 42, 0.24);
+}
+
+.active-route-vehicle-marker.selected span {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--route-color) 24%, transparent),
+    0 12px 26px rgba(15, 23, 42, 0.3);
+  transform: scale(1.08);
+}
+
+.active-route-vehicle-marker img {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  display: block;
+}
+
 .facility-popup {
   display: grid;
   gap: 5px;
@@ -1635,6 +1671,10 @@ h2 {
 .selected-vehicle-card span {
   color: #64748b;
   font-size: 12px;
+}
+
+.compact-address-card {
+  padding: 9px;
 }
 
 .primary-action-button,
