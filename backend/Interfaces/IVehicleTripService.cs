@@ -17,12 +17,21 @@ public interface IVehicleTripService
         string plate,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<VehicleTripDto>> GetForDriverAsync(
+        int driverId,
+        CancellationToken cancellationToken = default);
+
     Task<VehicleTripDto> CreateAsync(
         CreateVehicleTripRequest request,
         CancellationToken cancellationToken = default);
 
     Task<VehicleTripDto?> CompleteAsync(
         int id,
+        CancellationToken cancellationToken = default);
+
+    Task<VehicleTripDto?> CompleteForDriverAsync(
+        int id,
+        int driverId,
         CancellationToken cancellationToken = default);
 
     Task<VehicleTripDto?> CancelAsync(

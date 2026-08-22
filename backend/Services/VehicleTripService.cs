@@ -81,6 +81,19 @@ public sealed class VehicleTripService : IVehicleTripService
         return trip is null ? null : await ToDtoAsync(trip, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<VehicleTripDto>> GetForDriverAsync(
+        int driverId,
+        CancellationToken cancellationToken = default)
+    {
+        var trips = await QueryTrips()
+            .Where(trip => trip.DriverId == driverId)
+            .OrderByDescending(trip => trip.AssignedAt)
+            .Take(50)
+            .ToListAsync(cancellationToken);
+
+        return await ToDtosAsync(trips, cancellationToken);
+    }
+
     public async Task<VehicleTripDto> CreateAsync(
         CreateVehicleTripRequest request,
         CancellationToken cancellationToken = default)
@@ -157,6 +170,30 @@ public sealed class VehicleTripService : IVehicleTripService
     {
         var trip = await _dbContext.VehicleTrips
             .FirstOrDefaultAsync(currentTrip => currentTrip.Id == id, cancellationToken);
+
+        if (trip is null)
+        {
+            return null;
+        }
+
+        CompleteTrip(trip, DateTimeOffset.UtcNow);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var updated = await QueryTrips()
+            .FirstAsync(currentTrip => currentTrip.Id == id, cancellationToken);
+
+        return await ToDtoAsync(updated, cancellationToken);
+    }
+
+    public async Task<VehicleTripDto?> CompleteForDriverAsync(
+        int id,
+        int driverId,
+        CancellationToken cancellationToken = default)
+    {
+        var trip = await _dbContext.VehicleTrips
+            .FirstOrDefaultAsync(
+                currentTrip => currentTrip.Id == id && currentTrip.DriverId == driverId,
+                cancellationToken);
 
         if (trip is null)
         {

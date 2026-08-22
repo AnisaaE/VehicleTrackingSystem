@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using VehicleTrackingSystem.Auth;
 using VehicleTrackingSystem.DTOs.Errors;
 using VehicleTrackingSystem.DTOs.FieldMappings;
 using VehicleTrackingSystem.DTOs.Providers;
@@ -8,6 +10,7 @@ using VehicleTrackingSystem.Interfaces;
 namespace VehicleTrackingSystem.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/providers")]
 public sealed class ProvidersController : ControllerBase
 {
@@ -46,6 +49,7 @@ public sealed class ProvidersController : ControllerBase
     }
 
     [HttpGet("{id:int}/field-mappings")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(typeof(IReadOnlyList<FieldMappingDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<IReadOnlyList<FieldMappingDto>>> GetFieldMappings(
@@ -63,6 +67,7 @@ public sealed class ProvidersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(typeof(ProviderDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
     public async Task<ActionResult<ProviderDto>> Create(
@@ -83,6 +88,7 @@ public sealed class ProvidersController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(typeof(ProviderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
@@ -110,6 +116,7 @@ public sealed class ProvidersController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]

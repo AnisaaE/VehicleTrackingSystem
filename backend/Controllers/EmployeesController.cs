@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using VehicleTrackingSystem.Auth;
 using VehicleTrackingSystem.DTOs.Employees;
 using VehicleTrackingSystem.DTOs.Errors;
 using VehicleTrackingSystem.Interfaces;
@@ -6,6 +8,7 @@ using VehicleTrackingSystem.Interfaces;
 namespace VehicleTrackingSystem.Controllers;
 
 [ApiController]
+[Authorize(Roles = AppRoles.AdminOrDispatcher)]
 [Route("api/employees")]
 public sealed class EmployeesController : ControllerBase
 {
@@ -25,6 +28,7 @@ public sealed class EmployeesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(typeof(EmployeeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     public async Task<ActionResult<EmployeeDto>> Create(

@@ -1,4 +1,6 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
+using VehicleTrackingSystem.Auth;
 using VehicleTrackingSystem.Data;
 using VehicleTrackingSystem.Hubs;
 using VehicleTrackingSystem.Interfaces;
@@ -17,12 +19,19 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
 builder.Services.AddMemoryCache();
+builder.Services.AddAuthentication(TokenAuthenticationHandler.SchemeName)
+    .AddScheme<AuthenticationSchemeOptions, TokenAuthenticationHandler>(
+        TokenAuthenticationHandler.SchemeName,
+        _ => { });
+builder.Services.AddAuthorization();
 builder.Services.Configure<TrackingProviderCredentialsOptions>(
     builder.Configuration.GetSection(TrackingProviderCredentialsOptions.SectionName));
 builder.Services.Configure<GeocodingOptions>(
     builder.Configuration.GetSection(GeocodingOptions.SectionName));
 builder.Services.Configure<RoutingOptions>(
     builder.Configuration.GetSection(RoutingOptions.SectionName));
+builder.Services.Configure<AuthOptions>(
+    builder.Configuration.GetSection(AuthOptions.SectionName));
 builder.Services.AddCors(options =>
 {
     var allowedOrigins = builder.Configuration
@@ -81,6 +90,9 @@ builder.Services.AddScoped<IFacilityService, FacilityService>();
 builder.Services.AddScoped<IDestinationService, DestinationService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
 builder.Services.AddScoped<IVehicleTripService, VehicleTripService>();
+builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IUserAccountService, UserAccountService>();
+builder.Services.AddSingleton<IAuthTokenService, AuthTokenService>();
 builder.Services.AddSingleton<IFacilityGeofenceService, FacilityGeofenceService>();
 builder.Services.AddHttpClient<IGeocodingService, NominatimGeocodingService>();
 builder.Services.AddHttpClient<IRoutingService, OsrmRoutingService>();
@@ -100,6 +112,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 app.UseCors("Frontend");
+app.UseAuthentication();
+app.UseAuthorization();
 
 using (var scope = app.Services.CreateScope())
 {

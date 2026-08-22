@@ -20,6 +20,8 @@ public class VehicleTrackingDbContext : DbContext
 
     public DbSet<Employee> Employees => Set<Employee>();
 
+    public DbSet<UserAccount> UserAccounts => Set<UserAccount>();
+
     public DbSet<VehicleTrip> VehicleTrips => Set<VehicleTrip>();
 
     public DbSet<VehicleProviderSeen> VehicleProviderSeen => Set<VehicleProviderSeen>();
@@ -172,6 +174,42 @@ public class VehicleTrackingDbContext : DbContext
 
             entity.Property(employee => employee.UpdatedAt)
                 .IsRequired();
+        });
+
+        modelBuilder.Entity<UserAccount>(entity =>
+        {
+            entity.ToTable("user_accounts");
+
+            entity.HasKey(user => user.Id);
+
+            entity.Property(user => user.Username)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(user => user.PasswordHash)
+                .HasMaxLength(500)
+                .IsRequired();
+
+            entity.Property(user => user.Role)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(user => user.IsActive)
+                .IsRequired();
+
+            entity.Property(user => user.CreatedAt)
+                .IsRequired();
+
+            entity.Property(user => user.UpdatedAt)
+                .IsRequired();
+
+            entity.HasIndex(user => user.Username)
+                .IsUnique();
+
+            entity.HasOne(user => user.Employee)
+                .WithMany()
+                .HasForeignKey(user => user.EmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<VehicleTrip>(entity =>

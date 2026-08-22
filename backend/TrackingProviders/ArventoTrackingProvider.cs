@@ -23,15 +23,15 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
 
     private readonly Lazy<IReadOnlyList<RouteData>> _routes;
     private readonly ITrackingProviderCredentialService _credentialService;
-    private readonly IVehicleTripService _vehicleTripService;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     public ArventoTrackingProvider(
         IWebHostEnvironment environment,
         ITrackingProviderCredentialService credentialService,
-        IVehicleTripService vehicleTripService)
+        IServiceScopeFactory serviceScopeFactory)
     {
         _credentialService = credentialService;
-        _vehicleTripService = vehicleTripService;
+        _serviceScopeFactory = serviceScopeFactory;
         _routes = new Lazy<IReadOnlyList<RouteData>>(
             () => LoadRoutes(environment.ContentRootPath));
     }
@@ -95,7 +95,9 @@ public sealed class ArventoTrackingProvider : IVehicleTrackingProvider
     private async Task<IReadOnlyDictionary<string, SimulatedTripRoute>> GetActiveTripRoutesAsync(
         CancellationToken cancellationToken)
     {
-        var activeTrips = await _vehicleTripService.GetActiveForProviderAsync(
+        using var scope = _serviceScopeFactory.CreateScope();
+        var vehicleTripService = scope.ServiceProvider.GetRequiredService<IVehicleTripService>();
+        var activeTrips = await vehicleTripService.GetActiveForProviderAsync(
             ProviderCode,
             cancellationToken);
 

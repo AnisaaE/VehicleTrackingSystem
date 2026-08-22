@@ -269,7 +269,9 @@ function MapClickTarget({ enabled, onTargetSelected }) {
   return null;
 }
 
-export function MapsPage({ municipalityName, onNavigate }) {
+export function MapsPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+  const canEditMaps = currentUser?.role === 'ADMIN' || currentUser?.role === 'DISPATCHER';
+  const canDeleteMapPoints = currentUser?.role === 'ADMIN';
   const [facilities, setFacilities] = useState([]);
   const [destinations, setDestinations] = useState([]);
   const [selectedFacilityId, setSelectedFacilityId] = useState('');
@@ -611,8 +613,10 @@ export function MapsPage({ municipalityName, onNavigate }) {
       connectionStatus={connectionStatus}
       headerIcon={MapIcon}
       municipalityName={municipalityName}
+      onLogout={onLogout}
       onNavigate={onNavigate}
       title="Haritalar"
+      user={currentUser}
     >
       <section className="maps-dashboard">
         <aside className="workspace-panel facilities-panel">
@@ -621,9 +625,11 @@ export function MapsPage({ municipalityName, onNavigate }) {
               <span>Haritalar</span>
               <h2>Tesisler</h2>
             </div>
-            <button className="primary-mini-button" type="button" onClick={() => setIsEditorOpen(value => !value)}>
-              + Yeni Tesis
-            </button>
+            {canEditMaps && (
+              <button className="primary-mini-button" type="button" onClick={() => setIsEditorOpen(value => !value)}>
+                + Yeni Tesis
+              </button>
+            )}
           </div>
 
           <div className="search-box panel-search">
@@ -702,7 +708,7 @@ export function MapsPage({ municipalityName, onNavigate }) {
             )}
           </div>
 
-          {isEditorOpen && (
+          {canEditMaps && isEditorOpen && (
             <section className="facility-editor">
               <div className="section-title">
                 <Building2 size={18} />
@@ -732,8 +738,8 @@ export function MapsPage({ municipalityName, onNavigate }) {
           <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom zoomControl={false}>
             <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <ZoomControl position="topright" />
-            <DrawingTools onGeometryCreated={handleGeometryCreated} />
-            <MapCommandToolbar isPickMode={isPickMode} />
+            {canEditMaps && <DrawingTools onGeometryCreated={handleGeometryCreated} />}
+            {canEditMaps && <MapCommandToolbar isPickMode={isPickMode} />}
             <MapClickTarget enabled={isPickMode} onTargetSelected={nextTarget => {
               setTarget(nextTarget);
               setSelectedDestinationId('');
@@ -760,10 +766,12 @@ export function MapsPage({ municipalityName, onNavigate }) {
                           <strong>{facility.name}</strong>
                           <span>{facility.code}</span>
                           <em>{formatFacilityTypeLabel(facility.facilityType)}</em>
-                          <button type="button" onClick={() => handleDeleteFacility(facility)}>
-                            <Trash2 size={15} />
-                            Sil
-                          </button>
+                          {canDeleteMapPoints && (
+                            <button type="button" onClick={() => handleDeleteFacility(facility)}>
+                              <Trash2 size={15} />
+                              Sil
+                            </button>
+                          )}
                         </div>
                       </Popup>
                     </Marker>
@@ -848,6 +856,7 @@ export function MapsPage({ municipalityName, onNavigate }) {
             )}
           </div>
 
+          {canEditMaps && (
           <div className="segmented-actions">
             <button type="button" onClick={handleAddressSearch}>
               Adres Ara
@@ -856,6 +865,7 @@ export function MapsPage({ municipalityName, onNavigate }) {
               Haritadan Seç
             </button>
           </div>
+          )}
 
           <label className="field-stack panel-field">
             <span>Kayitli Hedefler</span>
@@ -877,14 +887,18 @@ export function MapsPage({ municipalityName, onNavigate }) {
             </div>
           )}
 
+          {canEditMaps && (
           <div className="segmented-actions">
             <button type="button" onClick={handleSaveDestination} disabled={!target}>
               Hedefi Kaydet
             </button>
+            {canDeleteMapPoints && (
             <button type="button" onClick={handleDeleteDestination} disabled={!selectedDestination}>
               Hedefi Sil
             </button>
+            )}
           </div>
+          )}
 
           <button className="primary-action-button" type="button" onClick={handleRoute}>
             <Navigation size={18} />

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using VehicleTrackingSystem.DTOs.Errors;
 using VehicleTrackingSystem.DTOs.Vehicles;
 using VehicleTrackingSystem.Interfaces;
@@ -6,6 +7,7 @@ using VehicleTrackingSystem.Interfaces;
 namespace VehicleTrackingSystem.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/vehicles")]
 public sealed class VehiclesController : ControllerBase
 {

@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using VehicleTrackingSystem.Auth;
 using VehicleTrackingSystem.DTOs.Errors;
 using VehicleTrackingSystem.DTOs.Providers;
 using VehicleTrackingSystem.DTOs.VehicleTypes;
@@ -9,6 +11,7 @@ using VehicleTrackingSystem.Services;
 namespace VehicleTrackingSystem.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/vehicle-types")]
 public sealed class VehicleTypesController : ControllerBase
 {
@@ -69,6 +72,7 @@ public sealed class VehicleTypesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(typeof(VehicleTypeDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
@@ -96,6 +100,7 @@ public sealed class VehicleTypesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(typeof(VehicleTypeDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
@@ -124,6 +129,7 @@ public sealed class VehicleTypesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> Delete(

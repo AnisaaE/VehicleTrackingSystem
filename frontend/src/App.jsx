@@ -30,7 +30,11 @@ import {
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
 import { NearestVehiclesPage } from './pages/NearestVehiclesPage';
+import { DriverTripsPage } from './pages/DriverTripsPage';
+import { LoginPage } from './pages/LoginPage';
+import { UsersPage } from './pages/UsersPage';
 import { AppLayout } from './components/AppLayout';
+import { useAuth } from './context/AuthContext';
 
 function createVehicleIcon(iconUrl, className = '') {
   return new L.Icon({
@@ -273,7 +277,8 @@ function DetailItem({ icon: Icon, label, value }) {
   );
 }
 
-function LiveTrackingPage({ municipalityName, onNavigate }) {
+function LiveTrackingPage({ currentUser, municipalityName, onLogout, onNavigate }) {
+  const canManageTrips = currentUser?.role === 'ADMIN' || currentUser?.role === 'DISPATCHER';
   const [selectedProviderCode, setSelectedProviderCode] = useState(
     appConfig.defaultProviderCode
   );
@@ -417,10 +422,12 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
       .then(setDestinations)
       .catch(nextError => setRouteError(nextError.message));
 
-    fetchEmployees()
-      .then(setEmployees)
-      .catch(nextError => setRouteError(nextError.message));
-  }, []);
+    if (canManageTrips) {
+      fetchEmployees()
+        .then(setEmployees)
+        .catch(nextError => setRouteError(nextError.message));
+    }
+  }, [canManageTrips]);
 
   useEffect(() => {
     if (
@@ -598,8 +605,10 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
       headerIcon={MapPinned}
       lastUpdatedAt={lastUpdatedAt}
       municipalityName={municipalityName}
+      onLogout={onLogout}
       onNavigate={onNavigate}
       title="Canlı Takip"
+      user={currentUser}
     >
       <section className={`tracking-dashboard ${selectedVehicle ? 'has-details' : ''}`}>
         <aside className="workspace-panel vehicle-panel">
@@ -820,63 +829,67 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
                 </div>
               )}
 
-              <label className="field-stack panel-field compact-field">
-                <span>Çıkış Noktası</span>
-                <select
-                  value={originFacilityId}
-                  onChange={event => setManualOriginFacilityId(event.target.value)}
-                  disabled={Boolean(activeTrip || selectedDeparture)}
-                >
-                  <option value="">Mevcut konum</option>
-                  {facilities.map(facility => (
-                    <option key={facility.id} value={facility.id}>{facility.name}</option>
-                  ))}
-                </select>
-              </label>
+              {canManageTrips && (
+                <>
+                  <label className="field-stack panel-field compact-field">
+                    <span>Çıkış Noktası</span>
+                    <select
+                      value={originFacilityId}
+                      onChange={event => setManualOriginFacilityId(event.target.value)}
+                      disabled={Boolean(activeTrip || selectedDeparture)}
+                    >
+                      <option value="">Mevcut konum</option>
+                      {facilities.map(facility => (
+                        <option key={facility.id} value={facility.id}>{facility.name}</option>
+                      ))}
+                    </select>
+                  </label>
 
-              {selectedDeparture && (
-                <div className="route-origin-note">
-                  <Flag size={16} />
-                  <span>{selectedDeparture.facilityName} tesisinden çıktı.</span>
-                </div>
+                  {selectedDeparture && (
+                    <div className="route-origin-note">
+                      <Flag size={16} />
+                      <span>{selectedDeparture.facilityName} tesisinden çıktı.</span>
+                    </div>
+                  )}
+
+                  {!activeTrip && !selectedDeparture && !originFacilityId && (
+                    <div className="route-origin-note">
+                      <MapPin size={16} />
+                      <span>Rota aracin mevcut konumundan baslayacak.</span>
+                    </div>
+                  )}
+
+                  <label className="field-stack panel-field compact-field">
+                    <span>Varış Noktası</span>
+                    <select
+                      value={activeTrip?.destinationId ? String(activeTrip.destinationId) : selectedDestinationId}
+                      onChange={event => setSelectedDestinationId(event.target.value)}
+                      disabled={Boolean(activeTrip)}
+                    >
+                      <option value="">Kayıtlı hedef seç</option>
+                      {destinations.map(destination => (
+                        <option key={destination.id} value={destination.id}>{destination.name}</option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label className="field-stack panel-field compact-field">
+                    <span>Sofor</span>
+                    <select
+                      value={activeTrip?.driverId ? String(activeTrip.driverId) : selectedDriverId}
+                      onChange={event => setSelectedDriverId(event.target.value)}
+                      disabled={Boolean(activeTrip)}
+                    >
+                      <option value="">Sofor sec</option>
+                      {employees
+                        .filter(employee => employee.isActive && employee.role === 'DRIVER')
+                        .map(employee => (
+                          <option key={employee.id} value={employee.id}>{employee.fullName}</option>
+                        ))}
+                    </select>
+                  </label>
+                </>
               )}
-
-              {!activeTrip && !selectedDeparture && !originFacilityId && (
-                <div className="route-origin-note">
-                  <MapPin size={16} />
-                  <span>Rota aracin mevcut konumundan baslayacak.</span>
-                </div>
-              )}
-
-              <label className="field-stack panel-field compact-field">
-                <span>Varış Noktası</span>
-                <select
-                  value={activeTrip?.destinationId ? String(activeTrip.destinationId) : selectedDestinationId}
-                  onChange={event => setSelectedDestinationId(event.target.value)}
-                  disabled={Boolean(activeTrip)}
-                >
-                  <option value="">Kayıtlı hedef seç</option>
-                  {destinations.map(destination => (
-                    <option key={destination.id} value={destination.id}>{destination.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="field-stack panel-field compact-field">
-                <span>Sofor</span>
-                <select
-                  value={activeTrip?.driverId ? String(activeTrip.driverId) : selectedDriverId}
-                  onChange={event => setSelectedDriverId(event.target.value)}
-                  disabled={Boolean(activeTrip)}
-                >
-                  <option value="">Sofor sec</option>
-                  {employees
-                    .filter(employee => employee.isActive && employee.role === 'DRIVER')
-                    .map(employee => (
-                      <option key={employee.id} value={employee.id}>{employee.fullName}</option>
-                    ))}
-                </select>
-              </label>
 
               {destinationTarget && (
                 <div className="route-live-summary">
@@ -905,7 +918,7 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
                 </div>
               )}
 
-              {activeTrip ? (
+              {canManageTrips && activeTrip ? (
                 <div className="segmented-actions">
                   <button type="button" onClick={handleCompleteTrip}>
                     Tamamla
@@ -914,11 +927,16 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
                     Iptal
                   </button>
                 </div>
-              ) : (
+              ) : canManageTrips ? (
                 <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!selectedDestinationId}>
                   <Navigation size={18} />
                   Gorevlendir
                 </button>
+              ) : (
+                <div className="no-active-trip-note">
+                  <Route size={16} />
+                  <span>Bu rolde gorev atama yetkisi yok.</span>
+                </div>
               )}
             </section>
 
@@ -947,6 +965,7 @@ function LiveTrackingPage({ municipalityName, onNavigate }) {
 export default function App() {
   const [activePage, setActivePage] = useState('tracking');
   const [runtimeConfig, setRuntimeConfig] = useState(appConfig);
+  const { isInitializing, isSignedIn, signOut, user } = useAuth();
 
   useEffect(() => {
     fetchAppConfig()
@@ -961,16 +980,86 @@ export default function App() {
       });
   }, []);
 
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+
+    if (user.role === 'DRIVER') {
+      setActivePage('driverTrips');
+      return;
+    }
+
+    if (activePage === 'driverTrips') {
+      setActivePage('tracking');
+    }
+
+    if (activePage === 'users' && user.role !== 'ADMIN') {
+      setActivePage('tracking');
+    }
+  }, [activePage, user]);
+
+  if (isInitializing) {
+    return (
+      <div className="auth-loading-screen">
+        Oturum kontrol ediliyor...
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <LoginPage municipalityName={runtimeConfig.municipalityName} />
+    );
+  }
+
+  const effectiveActivePage = user?.role === 'DRIVER'
+    ? 'driverTrips'
+    : activePage === 'users' && user?.role !== 'ADMIN'
+    ? 'tracking'
+    : activePage;
+
   return (
     <div className="root-shell">
-      {activePage === 'tracking' && (
-        <LiveTrackingPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+      {effectiveActivePage === 'tracking' && (
+        <LiveTrackingPage
+          currentUser={user}
+          municipalityName={runtimeConfig.municipalityName}
+          onLogout={signOut}
+          onNavigate={setActivePage}
+        />
       )}
-      {activePage === 'nearest' && (
-        <NearestVehiclesPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+      {effectiveActivePage === 'nearest' && (
+        <NearestVehiclesPage
+          currentUser={user}
+          municipalityName={runtimeConfig.municipalityName}
+          onLogout={signOut}
+          onNavigate={setActivePage}
+        />
       )}
-      {activePage === 'maps' && (
-        <MapsPage municipalityName={runtimeConfig.municipalityName} onNavigate={setActivePage} />
+      {effectiveActivePage === 'maps' && (
+        <MapsPage
+          currentUser={user}
+          municipalityName={runtimeConfig.municipalityName}
+          onLogout={signOut}
+          onNavigate={setActivePage}
+        />
+      )}
+      {effectiveActivePage === 'driverTrips' && (
+        <DriverTripsPage
+          currentUser={user}
+          municipalityName={runtimeConfig.municipalityName}
+          onLogout={signOut}
+          onNavigate={setActivePage}
+        />
+      )}
+      {effectiveActivePage === 'users' && user?.role === 'ADMIN' && (
+        <UsersPage
+          currentUser={user}
+          municipalityName={runtimeConfig.municipalityName}
+          onLogout={signOut}
+          onNavigate={setActivePage}
+        />
       )}
     </div>
   );

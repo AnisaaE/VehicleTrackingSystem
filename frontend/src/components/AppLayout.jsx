@@ -1,16 +1,21 @@
 import {
   Building2,
+  ClipboardList,
   LocateFixed,
+  LogOut,
   Map,
   MapPinned,
   Menu,
-  UserCircle
+  UserCircle,
+  Users
 } from 'lucide-react';
 
 const navigationItems = [
-  { id: 'tracking', label: 'Canli Takip', icon: MapPinned },
-  { id: 'nearest', label: 'Yakin Arac', icon: LocateFixed },
-  { id: 'maps', label: 'Haritalar', icon: Map },
+  { id: 'tracking', label: 'Canli Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'nearest', label: 'Yakin Arac', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'maps', label: 'Haritalar', icon: Map, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'driverTrips', label: 'Gorevlerim', icon: ClipboardList, roles: ['DRIVER'] },
+  { id: 'users', label: 'Kullanicilar', icon: Users, roles: ['ADMIN'] },
 ];
 
 function formatHeaderTime(value) {
@@ -39,9 +44,15 @@ export function AppLayout({
   headerIcon: HeaderIcon = Map,
   lastUpdatedAt,
   municipalityName,
+  onLogout,
   onNavigate,
+  user,
   title
 }) {
+  const visibleNavigationItems = navigationItems.filter(item =>
+    !user?.role || item.roles.includes(user.role)
+  );
+
   return (
     <div className="dashboard-shell">
       <aside className="main-sidebar">
@@ -50,18 +61,16 @@ export function AppLayout({
         </button>
 
         <nav className="sidebar-nav" aria-label="Ana menu">
-          {navigationItems.map(item => {
+          {visibleNavigationItems.map(item => {
             const Icon = item.icon;
             const isActive = item.id === activePage;
-            const isEnabled = item.id === 'tracking' || item.id === 'nearest' || item.id === 'maps';
 
             return (
               <button
                 key={item.id}
                 className={isActive ? 'active' : ''}
                 type="button"
-                onClick={() => isEnabled && onNavigate?.(item.id)}
-                disabled={!isEnabled}
+                onClick={() => onNavigate?.(item.id)}
                 title={item.label}
               >
                 <Icon size={19} />
@@ -87,9 +96,15 @@ export function AppLayout({
           <div className="header-actions">
             <StatusPill status={connectionStatus} label={connectionLabel} />
             <time>{formatHeaderTime(lastUpdatedAt)}</time>
-            <button type="button" aria-label="Profil">
+            {user && <span className="header-user-role">{user.fullName} · {user.role}</span>}
+            <button type="button" aria-label="Profil" title={user?.username ?? 'Profil'}>
               <UserCircle size={25} />
             </button>
+            {onLogout && (
+              <button type="button" onClick={onLogout} aria-label="Cikis" title="Cikis">
+                <LogOut size={21} />
+              </button>
+            )}
           </div>
         </header>
 

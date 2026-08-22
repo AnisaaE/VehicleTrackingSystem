@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using VehicleTrackingSystem.Auth;
 using VehicleTrackingSystem.DTOs.Errors;
 using VehicleTrackingSystem.DTOs.Facilities;
 using VehicleTrackingSystem.Interfaces;
@@ -7,6 +9,7 @@ using VehicleTrackingSystem.Interfaces;
 namespace VehicleTrackingSystem.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/facilities")]
 public sealed class FacilitiesController : ControllerBase
 {
@@ -43,6 +46,7 @@ public sealed class FacilitiesController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = AppRoles.AdminOrDispatcher)]
     [ProducesResponseType(typeof(FacilityDto), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]
@@ -71,6 +75,7 @@ public sealed class FacilitiesController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = AppRoles.Admin)]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status409Conflict)]

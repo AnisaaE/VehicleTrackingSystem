@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using VehicleTrackingSystem.Auth;
 using VehicleTrackingSystem.Entities;
 
 namespace VehicleTrackingSystem.Data;
@@ -14,6 +15,7 @@ public static class DatabaseSeeder
         await EnsureVehicleTypesAsync(dbContext, providersByCode, cancellationToken);
         await EnsureFieldMappingsAsync(dbContext, providersByCode, cancellationToken);
         await EnsureEmployeesAsync(dbContext, cancellationToken);
+        await EnsureAdminUserAsync(dbContext, cancellationToken);
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -175,6 +177,48 @@ public static class DatabaseSeeder
                 CreatedAt = now,
                 UpdatedAt = now
             });
+    }
+
+    private static async Task EnsureAdminUserAsync(
+        VehicleTrackingDbContext dbContext,
+        CancellationToken cancellationToken)
+    {
+        var hasAdmin = await dbContext.UserAccounts
+            .AnyAsync(user => user.Role == AppRoles.Admin, cancellationToken);
+
+        if (hasAdmin)
+        {
+            return;
+        }
+
+        var now = DateTimeOffset.UtcNow;
+        var adminEmployee = await dbContext.Employees
+            .FirstOrDefaultAsync(employee => employee.Role == AppRoles.Admin, cancellationToken);
+
+        if (adminEmployee is null)
+        {
+            adminEmployee = new Employee
+            {
+                FullName = "System Admin",
+                Email = "admin@example.local",
+                Role = AppRoles.Admin,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            dbContext.Employees.Add(adminEmployee);
+        }
+
+        dbContext.UserAccounts.Add(new UserAccount
+        {
+            Employee = adminEmployee,
+            Username = "admin",
+            PasswordHash = PasswordHasher.HashPassword("Admin123!"),
+            Role = AppRoles.Admin,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now
+        });
     }
 
     private static void AddProviderIfMissing(
