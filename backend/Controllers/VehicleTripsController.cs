@@ -19,6 +19,25 @@ public sealed class VehicleTripsController : ControllerBase
         _vehicleTripService = vehicleTripService;
     }
 
+    [HttpGet]
+    [Authorize(Roles = AppRoles.AdminOrDispatcher)]
+    [ProducesResponseType(typeof(IReadOnlyList<VehicleTripDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<VehicleTripDto>>> GetAll(
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _vehicleTripService.GetAllAsync(cancellationToken));
+    }
+
+    [HttpGet("driver/{driverId:int}")]
+    [Authorize(Roles = AppRoles.AdminOrDispatcher)]
+    [ProducesResponseType(typeof(IReadOnlyList<VehicleTripDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<VehicleTripDto>>> GetForDriver(
+        int driverId,
+        CancellationToken cancellationToken)
+    {
+        return Ok(await _vehicleTripService.GetForDriverAsync(driverId, cancellationToken));
+    }
+
     [HttpGet("active")]
     [ProducesResponseType(typeof(IReadOnlyList<VehicleTripDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<VehicleTripDto>>> GetActive(

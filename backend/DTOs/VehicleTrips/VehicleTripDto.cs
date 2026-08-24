@@ -5,6 +5,8 @@ public sealed record VehicleTripDto(
     int VehicleId,
     string VehiclePlate,
     string VehicleName,
+    string? VehicleTypeCode,
+    string? VehicleTypeName,
     string ProviderCode,
     int? DriverId,
     string? DriverName,

@@ -35,6 +35,7 @@ import { NearestVehiclesPage } from './pages/NearestVehiclesPage';
 import { DriverTripsPage } from './pages/DriverTripsPage';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
+import { AdminDriverHistoryPage } from './pages/AdminDriverHistoryPage';
 import { AppLayout } from './components/AppLayout';
 import { useAuth } from './context/AuthContext';
 
@@ -1323,7 +1324,7 @@ export default function App() {
         <RouterRoute
           path="/maps"
           element={requireRoles(
-            ['ADMIN', 'DISPATCHER', 'VIEWER'],
+            ['ADMIN'],
             <MapsPage
               currentUser={user}
               municipalityName={runtimeConfig.municipalityName}
@@ -1347,6 +1348,17 @@ export default function App() {
           element={requireRoles(
             ['ADMIN'],
             <UsersPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
+        />
+        <RouterRoute
+          path="/users/drivers/:driverId/history"
+          element={requireRoles(
+            ['ADMIN'],
+            <AdminDriverHistoryPage
               currentUser={user}
               municipalityName={runtimeConfig.municipalityName}
               onLogout={handleLogout}

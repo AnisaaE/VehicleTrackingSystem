@@ -16,7 +16,7 @@ import { useAuth } from '../context/AuthContext';
 const navigationItems = [
   { id: 'tracking', path: '/tracking', label: 'Canli Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
   { id: 'nearest', path: '/nearest', label: 'Yakin Arac', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
-  { id: 'maps', path: '/maps', label: 'Haritalar', icon: Map, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'maps', path: '/maps', label: 'Haritalar', icon: Map, roles: ['ADMIN'] },
   { id: 'driverTrips', path: '/my-trips', label: 'Gorevlerim', icon: ClipboardList, roles: ['DRIVER'] },
   { id: 'users', path: '/users', label: 'Kullanicilar', icon: Users, roles: ['ADMIN'] },
 ];

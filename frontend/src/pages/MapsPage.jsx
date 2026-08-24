@@ -270,7 +270,7 @@ function MapClickTarget({ enabled, onTargetSelected }) {
 }
 
 export function MapsPage({ currentUser, municipalityName, onLogout }) {
-  const canEditMaps = currentUser?.role === 'ADMIN' || currentUser?.role === 'DISPATCHER';
+  const canEditMaps = currentUser?.role === 'ADMIN';
   const canDeleteMapPoints = currentUser?.role === 'ADMIN';
   const [facilities, setFacilities] = useState([]);
   const [destinations, setDestinations] = useState([]);

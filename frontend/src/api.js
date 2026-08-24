@@ -195,6 +195,26 @@ export async function fetchActiveVehicleTrips({ providerCode, plate } = {}) {
   return response.json();
 }
 
+export async function fetchVehicleTrips() {
+  const response = await apiFetch('/api/vehicle-trips');
+
+  if (!response.ok) {
+    throw await readError(response, 'Gorev gecmisi yuklenemedi.');
+  }
+
+  return response.json();
+}
+
+export async function fetchDriverVehicleTrips(driverId) {
+  const response = await apiFetch(`/api/vehicle-trips/driver/${encodeURIComponent(driverId)}`);
+
+  if (!response.ok) {
+    throw await readError(response, 'Sofor gecmisi yuklenemedi.');
+  }
+
+  return response.json();
+}
+
 export async function fetchMyVehicleTrips() {
   const response = await apiFetch('/api/vehicle-trips/my');
 

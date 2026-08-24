@@ -5,6 +5,9 @@ namespace VehicleTrackingSystem.Interfaces;
 
 public interface IVehicleTripService
 {
+    Task<IReadOnlyList<VehicleTripDto>> GetAllAsync(
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<VehicleTripDto>> GetActiveAsync(
         CancellationToken cancellationToken = default);
 

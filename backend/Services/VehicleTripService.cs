@@ -36,6 +36,17 @@ public sealed class VehicleTripService : IVehicleTripService
         _routingService = routingService;
     }
 
+    public async Task<IReadOnlyList<VehicleTripDto>> GetAllAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var trips = await QueryTrips()
+            .OrderByDescending(trip => trip.AssignedAt)
+            .Take(200)
+            .ToListAsync(cancellationToken);
+
+        return await ToDtosAsync(trips, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<VehicleTripDto>> GetActiveAsync(
         CancellationToken cancellationToken = default)
     {
@@ -281,6 +292,8 @@ public sealed class VehicleTripService : IVehicleTripService
         _dbContext.VehicleTrips
             .Include(trip => trip.Vehicle)
             .ThenInclude(vehicle => vehicle.Provider)
+            .Include(trip => trip.Vehicle)
+            .ThenInclude(vehicle => vehicle.VehicleType)
             .Include(trip => trip.Driver)
             .Include(trip => trip.AssignedByEmployee);
 
@@ -385,6 +398,8 @@ public sealed class VehicleTripService : IVehicleTripService
             trip.VehicleId,
             trip.Vehicle.Plate,
             trip.Vehicle.Name,
+            trip.Vehicle.VehicleType?.Code,
+            trip.Vehicle.VehicleType?.Name,
             trip.Vehicle.Provider.Code,
             trip.DriverId,
             trip.Driver?.FullName,
@@ -413,10 +428,9 @@ public sealed class VehicleTripService : IVehicleTripService
         trip.CompletedAt = completedAt;
         trip.ActualDistanceMeters ??= trip.EstimatedDistanceMeters;
 
-        var startedAt = trip.StartedAt ?? trip.AssignedAt;
         trip.ActualDurationSeconds ??= Math.Max(
             0,
-            (completedAt - startedAt).TotalSeconds);
+            (completedAt - trip.AssignedAt).TotalSeconds);
     }
 
     private static double DistanceMeters(

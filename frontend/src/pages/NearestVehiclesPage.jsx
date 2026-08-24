@@ -2,6 +2,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'rea
 import {
   Building2,
   CarFront,
+  ChevronDown,
   Clock3,
   Cross,
   Flame,
@@ -9,13 +10,15 @@ import {
   LocateFixed,
   MapPin,
   Navigation,
+  Route,
+  Save,
   Search,
   Warehouse
 } from 'lucide-react';
-import { GeoJSON, MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
-import { fetchFacilities, fetchRoute } from '../api';
+import { fetchActiveVehicleTrips, fetchDestinations, fetchFacilities, fetchRoute, geocodeAddress } from '../api';
 import { AppLayout } from '../components/AppLayout';
 import { useVehicleLocations } from '../useVehicleLocations';
 
@@ -61,6 +64,19 @@ const facilityMarkerColors = {
   UNKNOWN: '#64748b'
 };
 
+const routeColors = [
+  '#2563eb',
+  '#dc2626',
+  '#16a34a',
+  '#ca8a04',
+  '#7c3aed',
+  '#0891b2',
+  '#ea580c',
+  '#be123c'
+];
+
+const SAVED_NEAREST_ROUTES_KEY = 'vehicle-tracking-nearest-saved-routes';
+
 const facilityBoundaryStyles = {
   FIRE_STATION: { color: '#dc2626', weight: 2, fillOpacity: 0.1 },
   HOSPITAL: { color: '#2563eb', weight: 2, fillOpacity: 0.1 },
@@ -84,6 +100,14 @@ function pointToLatLng(geoJson) {
   }
 
   return [geometry.coordinates[1], geometry.coordinates[0]];
+}
+
+function targetToLatLng(target) {
+  if (!target) {
+    return null;
+  }
+
+  return [target.latitude, target.longitude];
 }
 
 function routeToPositions(route) {
@@ -146,6 +170,19 @@ function formatVehicleTypeLabel(value) {
   return vehicleTypeLabels[normalizedType] ?? value ?? 'Diger';
 }
 
+function loadSavedRoutes() {
+  try {
+    const routes = JSON.parse(localStorage.getItem(SAVED_NEAREST_ROUTES_KEY) ?? '[]');
+    return Array.isArray(routes) ? routes : [];
+  } catch {
+    return [];
+  }
+}
+
+function persistSavedRoutes(routes) {
+  localStorage.setItem(SAVED_NEAREST_ROUTES_KEY, JSON.stringify(routes));
+}
+
 function formatFacilityTypeLabel(value) {
   const normalizedType = normalizeType(value);
 
@@ -191,6 +228,16 @@ function createFacilityMarkerIcon(facility, isSelected) {
   });
 }
 
+function createTargetMarkerIcon() {
+  return L.divIcon({
+    className: 'nearest-target-marker',
+    html: '<span></span>',
+    iconSize: [34, 42],
+    iconAnchor: [17, 42],
+    popupAnchor: [0, -38]
+  });
+}
+
 function getVehicleIcon(vehicle, isSelected = false) {
   const icon = vehicleIcons[normalizeType(vehicle.vehicleType, 'DEFAULT')] ?? vehicleIcons.DEFAULT;
 
@@ -199,6 +246,25 @@ function getVehicleIcon(vehicle, isSelected = false) {
   }
 
   return createVehicleIcon(icon.options.iconUrl, 'selected-vehicle-marker');
+}
+
+function getVehicleIconUrl(vehicle) {
+  const icon = vehicleIcons[normalizeType(vehicle.vehicleType, 'DEFAULT')] ?? vehicleIcons.DEFAULT;
+  return icon.options.iconUrl;
+}
+
+function getActiveVehicleIcon(vehicle, routeColor, isSelected = false) {
+  return L.divIcon({
+    className: `active-route-vehicle-marker ${isSelected ? 'selected' : ''}`,
+    html: `
+      <span style="--route-color:${routeColor}">
+        <img src="${getVehicleIconUrl(vehicle)}" alt="" />
+      </span>
+    `,
+    iconSize: [54, 54],
+    iconAnchor: [27, 27],
+    popupAnchor: [0, -28]
+  });
 }
 
 function NearbyMapFocus({ facilities, vehicles }) {
@@ -224,16 +290,61 @@ function NearbyMapFocus({ facilities, vehicles }) {
   return null;
 }
 
+function NearbyTargetFocus({ selectedTarget }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const position = targetToLatLng(selectedTarget);
+
+    if (position) {
+      map.flyTo(position, Math.max(map.getZoom(), 14), { duration: 0.45 });
+    }
+  }, [map, selectedTarget]);
+
+  return null;
+}
+
+function NearbyMapClickTarget({ enabled, onSelectTarget }) {
+  useMapEvents({
+    click: event => {
+      if (enabled) {
+        onSelectTarget({
+          latitude: event.latlng.lat,
+          longitude: event.latlng.lng,
+          label: 'Haritadan secilen nokta',
+          source: 'map'
+        });
+      }
+    }
+  });
+
+  return null;
+}
+
 function NearbyMap({
   facilities,
   vehicles,
-  selectedFacility,
+  selectedTarget,
   selectedVehicle,
   selectedRoute,
+  extraRoute,
+  activeTripRoutes,
   onSelectFacility,
-  onSelectVehicle
+  onSelectVehicle,
+  onSelectTarget,
+  canSelectMapTarget
 }) {
   const routePositions = routeToPositions(selectedRoute);
+  const extraRoutePositions = routeToPositions(extraRoute);
+  const selectedTargetPosition = targetToLatLng(selectedTarget);
+  const visibleVehicleKeys = new Set(vehicles.map(vehicle => `${vehicle.provider}:${normalizePlate(vehicle.plate)}`));
+  const selectedVehicleKey = selectedVehicle ? `${selectedVehicle.provider}:${normalizePlate(selectedVehicle.plate)}` : null;
+  const routeColorByVehicleKey = new Map(
+    activeTripRoutes.map(routeItem => [
+      routeItem.vehicleKey,
+      routeItem.color
+    ])
+  );
 
   return (
     <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="vehicle-map" scrollWheelZoom zoomControl={false}>
@@ -243,11 +354,13 @@ function NearbyMap({
         facilities={facilities}
         vehicles={vehicles}
       />
+      <NearbyTargetFocus selectedTarget={selectedTarget} />
+      <NearbyMapClickTarget enabled={canSelectMapTarget} onSelectTarget={onSelectTarget} />
 
       {facilities.map(facility => {
         const position = pointToLatLng(facility.location);
         const boundary = parseGeometry(facility.boundary);
-        const isSelected = selectedFacility?.id === facility.id;
+        const isSelected = selectedTarget?.source === 'facility' && String(selectedTarget.id) === String(facility.id);
 
         return (
           <Fragment key={facility.id}>
@@ -257,7 +370,12 @@ function NearbyMap({
                 position={position}
                 icon={createFacilityMarkerIcon(facility, isSelected)}
                 zIndexOffset={isSelected ? 1000 : 0}
-                eventHandlers={{ click: () => onSelectFacility(String(facility.id)) }}
+                eventHandlers={{
+                  click: event => {
+                    event.originalEvent?.stopPropagation();
+                    onSelectFacility(String(facility.id));
+                  }
+                }}
               >
                 <Popup>
                   <strong>{facility.name}</strong>
@@ -269,21 +387,70 @@ function NearbyMap({
         );
       })}
 
+      {activeTripRoutes
+        .filter(routeItem => visibleVehicleKeys.has(routeItem.vehicleKey))
+        .map(routeItem => {
+          const positions = routeToPositions(routeItem.route);
+          const isSelectedTrip = selectedVehicleKey === routeItem.vehicleKey;
+
+          if (positions.length === 0) {
+            return null;
+          }
+
+          return (
+            <Polyline
+              key={routeItem.trip.id}
+              positions={positions}
+              pathOptions={{
+                color: routeItem.color,
+                opacity: isSelectedTrip ? 0.95 : 0.62,
+                weight: isSelectedTrip ? 6 : 4
+              }}
+            >
+              <Popup>
+                <strong>{routeItem.trip.vehiclePlate}</strong>
+                <span>{routeItem.trip.destinationName ?? 'Gorev hedefi'}</span>
+                <span>{formatDuration(routeItem.route.durationSeconds)}</span>
+              </Popup>
+            </Polyline>
+          );
+        })}
+
       {routePositions.length > 0 && (
         <Polyline positions={routePositions} pathOptions={{ color: '#2563eb', weight: 5 }} />
       )}
 
+      {extraRoutePositions.length > 0 && (
+        <Polyline positions={extraRoutePositions} pathOptions={{ color: '#16a34a', weight: 5, dashArray: '8 8' }} />
+      )}
+
+      {selectedTargetPosition && selectedTarget?.source !== 'facility' && (
+        <Marker position={selectedTargetPosition} icon={createTargetMarkerIcon()} zIndexOffset={1050}>
+          <Popup>
+            <strong>{selectedTarget.label}</strong>
+            <span>{selectedTarget.latitude.toFixed(5)}, {selectedTarget.longitude.toFixed(5)}</span>
+          </Popup>
+        </Marker>
+      )}
+
       {vehicles.map(vehicle => {
         const vehicleKey = getVehicleKey(vehicle);
+        const normalizedVehicleKey = `${vehicle.provider}:${normalizePlate(vehicle.plate)}`;
         const isSelected = selectedVehicle && getVehicleKey(selectedVehicle) === vehicleKey;
+        const routeColor = routeColorByVehicleKey.get(normalizedVehicleKey);
 
         return (
           <Marker
             key={vehicleKey}
             position={[vehicle.latitude, vehicle.longitude]}
-            icon={getVehicleIcon(vehicle, isSelected)}
+            icon={routeColor ? getActiveVehicleIcon(vehicle, routeColor, isSelected) : getVehicleIcon(vehicle, isSelected)}
             zIndexOffset={isSelected ? 1100 : 0}
-            eventHandlers={{ click: () => onSelectVehicle(vehicleKey) }}
+            eventHandlers={{
+              click: event => {
+                event.originalEvent?.stopPropagation();
+                onSelectVehicle(vehicleKey);
+              }
+            }}
           >
             <Popup>
               <strong>{vehicle.plate}</strong>
@@ -302,25 +469,50 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
   const { vehicles, providers, connectionStatus, lastUpdatedAt, error: vehicleError } =
     useVehicleLocations(selectedProviderCode);
   const [facilities, setFacilities] = useState([]);
+  const [destinations, setDestinations] = useState([]);
+  const [activeTool, setActiveTool] = useState('nearest');
+  const [isFacilityListOpen, setIsFacilityListOpen] = useState(false);
+  const [nearestTargetSource, setNearestTargetSource] = useState('map');
   const [facilitySearchTerm, setFacilitySearchTerm] = useState('');
-  const [selectedFacilityId, setSelectedFacilityId] = useState('');
+  const [addressQuery, setAddressQuery] = useState('');
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedTarget, setSelectedTarget] = useState(null);
+  const [selectedSavedRouteId, setSelectedSavedRouteId] = useState('');
   const [selectedVehicleType, setSelectedVehicleType] = useState('');
   const [selectedVehicleKey, setSelectedVehicleKey] = useState('');
   const [nearestRoutes, setNearestRoutes] = useState([]);
+  const [activeTrips, setActiveTrips] = useState([]);
+  const [activeTripRoutes, setActiveTripRoutes] = useState([]);
+  const [savedRoutes, setSavedRoutes] = useState(loadSavedRoutes);
+  const [routeOriginFacilityId, setRouteOriginFacilityId] = useState('');
+  const [routeDestinationId, setRouteDestinationId] = useState('');
+  const [routeAddressQuery, setRouteAddressQuery] = useState('');
+  const [routeSuggestions, setRouteSuggestions] = useState([]);
+  const [routeTarget, setRouteTarget] = useState(null);
+  const [routeResult, setRouteResult] = useState(null);
+  const [routeNotice, setRouteNotice] = useState(null);
+  const [isRoutePickMode, setIsRoutePickMode] = useState(false);
   const [routeError, setRouteError] = useState(null);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [isRouteRefreshing, setIsRouteRefreshing] = useState(false);
   const routeRequestRef = useRef(0);
   const filteredVehiclesRef = useRef([]);
+  const activeTripsRef = useRef([]);
 
   useEffect(() => {
     fetchFacilities()
       .then(nextFacilities => {
         setFacilities(nextFacilities);
-
-        const firstHospital = nextFacilities.find(facility => normalizeType(facility.facilityType) === 'HOSPITAL');
-        setSelectedFacilityId(current => current || String(firstHospital?.id ?? nextFacilities[0]?.id ?? ''));
+        if (!routeOriginFacilityId && nextFacilities.length > 0) {
+          setRouteOriginFacilityId(String(nextFacilities[0].id));
+        }
       })
+      .catch(nextError => setRouteError(nextError.message));
+  }, [routeOriginFacilityId]);
+
+  useEffect(() => {
+    fetchDestinations()
+      .then(setDestinations)
       .catch(nextError => setRouteError(nextError.message));
   }, []);
 
@@ -357,11 +549,6 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
     );
   }, [facilities, facilitySearchTerm]);
 
-  const selectedFacility = useMemo(
-    () => facilities.find(facility => String(facility.id) === String(selectedFacilityId)) ?? null,
-    [facilities, selectedFacilityId]
-  );
-
   const filteredVehicles = useMemo(
     () => vehicles.filter(vehicle =>
       !selectedVehicleType || normalizeType(vehicle.vehicleType, 'DEFAULT') === selectedVehicleType
@@ -373,6 +560,10 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
     filteredVehiclesRef.current = filteredVehicles;
   }, [filteredVehicles]);
 
+  useEffect(() => {
+    activeTripsRef.current = activeTrips;
+  }, [activeTrips]);
+
   const selectedVehicle = useMemo(
     () => filteredVehicles.find(vehicle => getVehicleKey(vehicle) === selectedVehicleKey) ?? nearestRoutes[0]?.vehicle ?? null,
     [filteredVehicles, nearestRoutes, selectedVehicleKey]
@@ -382,6 +573,21 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
     () => nearestRoutes.find(item => getVehicleKey(item.vehicle) === getVehicleKey(selectedVehicle ?? {}))?.route ?? nearestRoutes[0]?.route ?? null,
     [nearestRoutes, selectedVehicle]
   );
+
+  const selectedSavedRoute = useMemo(
+    () => savedRoutes.find(savedRoute => savedRoute.id === selectedSavedRouteId) ?? null,
+    [savedRoutes, selectedSavedRouteId]
+  );
+
+  const selectedFacility = useMemo(
+    () => facilities.find(facility => String(facility.id) === String(routeOriginFacilityId)) ?? facilities[0] ?? null,
+    [facilities, routeOriginFacilityId]
+  );
+
+  const routeDisplayTarget = activeTool === 'route' ? routeTarget : selectedTarget;
+  const routeDisplayRoute = activeTool === 'route'
+    ? routeResult
+    : selectedSavedRoute?.route ?? selectedRoute;
 
   const bestByType = useMemo(() => {
     const bestRoutes = new Map();
@@ -402,22 +608,142 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
 
   useEffect(() => {
     setSelectedVehicleKey('');
-  }, [selectedFacilityId, selectedVehicleType]);
+  }, [selectedTarget, selectedVehicleType]);
+
+  useEffect(() => {
+    if (addressQuery.trim().length < 3) {
+      setSuggestions([]);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      geocodeAddress(addressQuery)
+        .then(setSuggestions)
+        .catch(nextError => setRouteError(nextError.message));
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [addressQuery]);
+
+  useEffect(() => {
+    if (routeAddressQuery.trim().length < 3) {
+      setRouteSuggestions([]);
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      geocodeAddress(routeAddressQuery)
+        .then(setRouteSuggestions)
+        .catch(nextError => setRouteError(nextError.message));
+    }, 450);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [routeAddressQuery]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadActiveTrips = async () => {
+      try {
+        const trips = await fetchActiveVehicleTrips();
+
+        if (isMounted) {
+          setActiveTrips(trips);
+        }
+      } catch (nextError) {
+        if (isMounted) {
+          setRouteError(nextError.message);
+        }
+      }
+    };
+
+    loadActiveTrips();
+    const intervalId = window.setInterval(loadActiveTrips, 12000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (activeTrips.length === 0) {
+      setActiveTripRoutes([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const refreshActiveTripRoutes = async () => {
+      const currentActiveTrips = activeTripsRef.current;
+      const currentVehicles = filteredVehiclesRef.current;
+
+      if (currentActiveTrips.length === 0 || currentVehicles.length === 0) {
+        if (isMounted) {
+          setActiveTripRoutes([]);
+        }
+        return;
+      }
+
+      const routeResults = await Promise.all(
+        currentActiveTrips.map(async (trip, index) => {
+          const vehicle = currentVehicles.find(currentVehicle =>
+            currentVehicle.provider === trip.providerCode &&
+            normalizePlate(currentVehicle.plate) === normalizePlate(trip.vehiclePlate)
+          );
+
+          if (!vehicle) {
+            return null;
+          }
+
+          try {
+            const route = await fetchRoute({
+              fromLat: vehicle.latitude,
+              fromLon: vehicle.longitude,
+              toLat: trip.destinationLatitude,
+              toLon: trip.destinationLongitude,
+              vehiclePlate: vehicle.plate,
+              providerCode: vehicle.provider
+            });
+
+            return {
+              color: routeColors[index % routeColors.length],
+              route,
+              trip,
+              vehicleKey: `${trip.providerCode}:${normalizePlate(trip.vehiclePlate)}`
+            };
+          } catch {
+            return null;
+          }
+        })
+      );
+
+      if (isMounted) {
+        setActiveTripRoutes(routeResults.filter(Boolean));
+      }
+    };
+
+    refreshActiveTripRoutes();
+    const intervalId = window.setInterval(refreshActiveTripRoutes, 12000);
+
+    return () => {
+      isMounted = false;
+      window.clearInterval(intervalId);
+    };
+  }, [activeTrips.length, selectedProviderCode, selectedVehicleType]);
 
   const refreshNearestRoutes = useCallback(async ({ showLoading = false } = {}) => {
     const currentVehicles = filteredVehiclesRef.current;
 
-    if (!selectedFacility || currentVehicles.length === 0) {
+    const targetPosition = selectedSavedRoute?.origin
+      ? [selectedSavedRoute.origin.latitude, selectedSavedRoute.origin.longitude]
+      : targetToLatLng(selectedTarget);
+
+    if ((!selectedTarget && !selectedSavedRoute) || !targetPosition || currentVehicles.length === 0) {
+      routeRequestRef.current += 1;
       setNearestRoutes([]);
       setIsRouteLoading(false);
       setIsRouteRefreshing(false);
-      return;
-    }
-
-    const targetPosition = pointToLatLng(selectedFacility.location);
-    if (!targetPosition) {
-      setNearestRoutes([]);
-      setRouteError('Secilen tesisin konum bilgisi yok.');
       return;
     }
 
@@ -440,7 +766,21 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               providerCode: vehicle.provider
             });
 
-            return { vehicle, route, error: null };
+            if (!selectedSavedRoute) {
+              return { vehicle, route, error: null };
+            }
+
+            return {
+              vehicle,
+              route: {
+                ...route,
+                durationSeconds: route.durationSeconds + selectedSavedRoute.route.durationSeconds,
+                distanceMeters: route.distanceMeters + selectedSavedRoute.route.distanceMeters
+              },
+              approachRoute: route,
+              savedRoute: selectedSavedRoute,
+              error: null
+            };
           } catch (nextError) {
             return { vehicle, route: null, error: nextError.message };
           }
@@ -472,7 +812,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
         setIsRouteRefreshing(false);
       }
     }
-  }, [selectedFacility]);
+  }, [selectedSavedRoute, selectedTarget]);
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -483,7 +823,8 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
   }, [
     filteredVehicles.length,
     refreshNearestRoutes,
-    selectedFacilityId,
+    selectedTarget,
+    selectedSavedRoute,
     selectedProviderCode,
     selectedVehicleType
   ]);
@@ -497,8 +838,212 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
   }, [refreshNearestRoutes]);
 
   const handleSelectFacility = useCallback(facilityId => {
-    setSelectedFacilityId(facilityId);
+    const facility = facilities.find(currentFacility => String(currentFacility.id) === String(facilityId));
+    const position = pointToLatLng(facility?.location);
+
+    if (!facility || !position) {
+      setRouteError('Secilen tesisin konum bilgisi yok.');
+      return;
+    }
+
+    setSelectedTarget({
+      id: facility.id,
+      latitude: position[0],
+      longitude: position[1],
+      label: facility.name,
+      source: 'facility',
+      subtitle: formatFacilityTypeLabel(facility.facilityType)
+    });
+    setSuggestions([]);
+    setRouteError(null);
+  }, [facilities]);
+
+  const handleSelectRouteOriginFacility = useCallback(facilityId => {
+    const facility = facilities.find(currentFacility => String(currentFacility.id) === String(facilityId));
+
+    if (!facility) {
+      return;
+    }
+
+    setRouteOriginFacilityId(String(facility.id));
+    setRouteNotice(null);
+    setRouteError(null);
+  }, [facilities]);
+
+  const handleSelectSuggestion = useCallback(suggestion => {
+    setSelectedTarget({
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+      label: suggestion.displayName,
+      source: 'search'
+    });
+    setSuggestions([]);
+    setRouteError(null);
   }, []);
+
+  const handleSelectRouteSuggestion = useCallback(suggestion => {
+    setRouteTarget({
+      latitude: suggestion.latitude,
+      longitude: suggestion.longitude,
+      label: suggestion.displayName
+    });
+    setRouteDestinationId('');
+    setRouteAddressQuery(suggestion.displayName);
+    setRouteSuggestions([]);
+    setRouteResult(null);
+    setRouteNotice(null);
+    setRouteError(null);
+  }, []);
+
+  const handleSelectRouteDestination = useCallback(destinationId => {
+    setRouteDestinationId(destinationId);
+
+    const destination = destinations.find(currentDestination => String(currentDestination.id) === String(destinationId));
+    const position = pointToLatLng(destination?.location);
+
+    if (!destination || !position) {
+      return;
+    }
+
+    setRouteTarget({
+      latitude: position[0],
+      longitude: position[1],
+      label: destination.name
+    });
+    setRouteAddressQuery('');
+    setRouteSuggestions([]);
+    setRouteResult(null);
+    setRouteNotice(null);
+    setRouteError(null);
+  }, [destinations]);
+
+  const handleSelectMapTarget = useCallback(nextTarget => {
+    if (activeTool === 'route' && isRoutePickMode) {
+      setRouteTarget(nextTarget);
+      setRouteDestinationId('');
+      setRouteAddressQuery('');
+      setRouteResult(null);
+      setRouteNotice(null);
+      setIsRoutePickMode(false);
+    } else {
+      setSelectedTarget(nextTarget);
+      setSelectedSavedRouteId('');
+    }
+    setSuggestions([]);
+    setRouteSuggestions([]);
+    setRouteNotice(null);
+    setRouteError(null);
+  }, [activeTool, isRoutePickMode]);
+
+  const handleSelectNearestSource = source => {
+    setNearestTargetSource(source);
+    setRouteError(null);
+    setSelectedVehicleKey('');
+
+    if (source === 'map') {
+      setSelectedSavedRouteId('');
+    }
+  };
+
+  const handleClearTarget = () => {
+    routeRequestRef.current += 1;
+    setSelectedTarget(null);
+    setSelectedSavedRouteId('');
+    setNearestRoutes([]);
+    setSelectedVehicleKey('');
+    setAddressQuery('');
+    setSuggestions([]);
+    setRouteError(null);
+  };
+
+  const handleAddressSearch = () => {
+    if (addressQuery.trim().length < 3) {
+      return;
+    }
+
+    geocodeAddress(addressQuery)
+      .then(setSuggestions)
+      .catch(nextError => setRouteError(nextError.message));
+  };
+
+  const handleRouteAddressSearch = () => {
+    if (routeAddressQuery.trim().length < 3) {
+      return;
+    }
+
+    geocodeAddress(routeAddressQuery)
+      .then(setRouteSuggestions)
+      .catch(nextError => setRouteError(nextError.message));
+  };
+
+  const handleRoute = async () => {
+    if (!selectedFacility || !routeTarget) {
+      setRouteError('Rota icin cikis noktasi ve hedef secin.');
+      return;
+    }
+
+    try {
+      const nextRoute = await fetchRoute({
+        fromFacilityId: selectedFacility.id,
+        toLat: routeTarget.latitude,
+        toLon: routeTarget.longitude,
+        toDestinationId: routeDestinationId || undefined
+      });
+      setRouteResult(nextRoute);
+      setRouteNotice('Rota hazir.');
+      setRouteError(null);
+    } catch (nextError) {
+      setRouteError(nextError.message);
+    }
+  };
+
+  const handleSaveRoute = () => {
+    if (!selectedFacility || !routeTarget || !routeResult) {
+      setRouteError('Kaydetmek icin once rota alin.');
+      return;
+    }
+
+    const originPosition = pointToLatLng(selectedFacility.location);
+
+    if (!originPosition) {
+      setRouteError('Cikis tesisinin konum bilgisi yok.');
+      return;
+    }
+
+    const savedRoute = {
+      id: String(Date.now()),
+      name: `${selectedFacility.name} -> ${routeTarget.label}`,
+      origin: {
+        id: selectedFacility.id,
+        latitude: originPosition[0],
+        longitude: originPosition[1],
+        label: selectedFacility.name
+      },
+      target: routeTarget,
+      route: routeResult,
+      createdAt: new Date().toISOString()
+    };
+    const nextSavedRoutes = [savedRoute, ...savedRoutes].slice(0, 12);
+    setSavedRoutes(nextSavedRoutes);
+    persistSavedRoutes(nextSavedRoutes);
+    setSelectedSavedRouteId(savedRoute.id);
+    setRouteNotice('Rota kaydedildi.');
+    setRouteError(null);
+  };
+
+  const handleSelectSavedRoute = routeId => {
+    const savedRoute = savedRoutes.find(currentRoute => currentRoute.id === routeId);
+
+    setSelectedSavedRouteId(routeId);
+
+    if (savedRoute) {
+      setSelectedTarget({
+        ...savedRoute.target,
+        source: 'saved-route',
+        subtitle: savedRoute.name
+      });
+    }
+  };
 
   const selectedProviderName = selectedProviderCode
     ? providers.find(provider => provider.code === selectedProviderCode)?.name ?? selectedProviderCode
@@ -521,65 +1066,134 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
           <div className="panel-heading">
             <div>
               <span>Konum Secimi</span>
-              <h2>Tesisler</h2>
+              <h2>Hedef veya tesis</h2>
             </div>
-            <strong>{visibleFacilities.length}</strong>
+            <button
+              className={`collapse-toggle-button ${isFacilityListOpen ? 'open' : ''}`}
+              type="button"
+              onClick={() => setIsFacilityListOpen(current => !current)}
+              aria-expanded={isFacilityListOpen}
+              title={isFacilityListOpen ? 'Tesisleri kapat' : 'Tesisleri ac'}
+            >
+              <span>{visibleFacilities.length}</span>
+              <ChevronDown size={17} />
+            </button>
           </div>
 
-          <div className="search-box panel-search">
-            <Search size={17} />
-            <input
-              value={facilitySearchTerm}
-              onChange={event => setFacilitySearchTerm(event.target.value)}
-              placeholder="Hastane veya tesis ara..."
-            />
-          </div>
-
-          <div className="facility-list">
-            {visibleFacilities.length === 0 ? (
-              <div className="empty-panel-state">
-                <strong>Konum bulunamadi</strong>
-                <span>Arama metniyle eslesen tesis yok.</span>
-              </div>
-            ) : (
-              visibleFacilities.map(facility => {
-                const Icon = getFacilityIcon(facility.facilityType);
-                const isSelected = selectedFacility?.id === facility.id;
-
-                return (
+          <div className="field-stack panel-field">
+            <span>Adres ara</span>
+            <div className="inline-input">
+              <Search size={18} />
+              <input
+                value={addressQuery}
+                onChange={event => setAddressQuery(event.target.value)}
+                placeholder="Mahalle, cadde veya yer ara"
+              />
+              {addressQuery && (
+                <button className="plain-icon-button" type="button" onClick={() => setAddressQuery('')} aria-label="Temizle">
+                  x
+                </button>
+              )}
+            </div>
+            {suggestions.length > 0 && (
+              <div className="suggestion-list compact-suggestion-list nearest-suggestion-list">
+                {suggestions.map(suggestion => (
                   <button
-                    key={facility.id}
-                    className={`facility-row ${isSelected ? 'selected' : ''}`}
+                    key={`${suggestion.latitude}:${suggestion.longitude}`}
                     type="button"
-                    onClick={() => handleSelectFacility(String(facility.id))}
+                    onClick={() => handleSelectSuggestion(suggestion)}
                   >
-                    <span className="facility-row-icon" style={{ '--facility-color': getFacilityColor(facility.facilityType) }}>
-                      <Icon size={18} />
-                    </span>
-                    <span>
-                      <strong>{facility.name}</strong>
-                      <small>{facility.code}</small>
-                      <em>{formatFacilityTypeLabel(facility.facilityType)}</em>
-                    </span>
+                    <MapPin size={16} />
+                    <span>{suggestion.displayName}</span>
                   </button>
-                );
-              })
+                ))}
+              </div>
             )}
           </div>
+
+          <div className="segmented-actions nearest-location-actions">
+            <button type="button" onClick={handleAddressSearch}>
+              Adres Ara
+            </button>
+            <button type="button" onClick={handleClearTarget}>
+              Temizle
+            </button>
+          </div>
+
+          {selectedTarget && (
+            <div className="address-card compact-address-card nearest-target-card">
+              <MapPin size={18} />
+              <div>
+                <strong>{selectedTarget.label}</strong>
+                <span>{selectedTarget.subtitle ?? `${selectedTarget.latitude.toFixed(5)}, ${selectedTarget.longitude.toFixed(5)}`}</span>
+              </div>
+            </div>
+          )}
+
+          {isFacilityListOpen && (
+            <>
+              <div className="search-box panel-search">
+                <Search size={17} />
+                <input
+                  value={facilitySearchTerm}
+                  onChange={event => setFacilitySearchTerm(event.target.value)}
+                  placeholder="Hastane veya tesis ara..."
+                />
+              </div>
+
+              <div className="facility-list">
+                {visibleFacilities.length === 0 ? (
+                  <div className="empty-panel-state">
+                    <strong>Konum bulunamadi</strong>
+                    <span>Arama metniyle eslesen tesis yok.</span>
+                  </div>
+                ) : (
+                  visibleFacilities.map(facility => {
+                    const Icon = getFacilityIcon(facility.facilityType);
+                    const isSelected = selectedTarget?.source === 'facility' && String(selectedTarget.id) === String(facility.id);
+
+                    return (
+                      <button
+                        key={facility.id}
+                        className={`facility-row ${isSelected ? 'selected' : ''}`}
+                        type="button"
+                        onClick={() => activeTool === 'route'
+                          ? handleSelectRouteOriginFacility(String(facility.id))
+                          : handleSelectFacility(String(facility.id))}
+                      >
+                        <span className="facility-row-icon" style={{ '--facility-color': getFacilityColor(facility.facilityType) }}>
+                          <Icon size={18} />
+                        </span>
+                        <span>
+                          <strong>{facility.name}</strong>
+                          <small>{facility.code}</small>
+                          <em>{formatFacilityTypeLabel(facility.facilityType)}</em>
+                        </span>
+                      </button>
+                    );
+                  })
+                )}
+              </div>
+            </>
+          )}
         </aside>
 
         <section className="map-stage nearest-map-stage">
           <NearbyMap
             facilities={visibleFacilities}
             vehicles={filteredVehicles}
-            selectedFacility={selectedFacility}
+            selectedTarget={routeDisplayTarget}
             selectedVehicle={selectedVehicle}
-            selectedRoute={selectedRoute}
-            onSelectFacility={handleSelectFacility}
+            selectedRoute={routeDisplayRoute}
+            extraRoute={activeTool === 'nearest' ? nearestRoutes.find(item => getVehicleKey(item.vehicle) === getVehicleKey(selectedVehicle ?? {}))?.approachRoute : null}
+            activeTripRoutes={activeTripRoutes}
+            onSelectFacility={activeTool === 'route' ? handleSelectRouteOriginFacility : handleSelectFacility}
             onSelectVehicle={setSelectedVehicleKey}
+            onSelectTarget={handleSelectMapTarget}
+            canSelectMapTarget={activeTool === 'nearest' ? nearestTargetSource === 'map' : isRoutePickMode}
           />
 
-          {selectedFacility && nearestRoutes[0] && (
+          {selectedTarget && nearestRoutes[0] && (
             <div className="route-map-badge nearest-map-badge">
               <strong>{formatDuration(nearestRoutes[0].route.durationSeconds)}</strong>
               <span>{nearestRoutes[0].vehicle.plate}</span>
@@ -604,37 +1218,198 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
         <aside className="workspace-panel nearest-results-panel">
           <div className="details-heading">
             <div>
-              <span>En Yakin Araclar</span>
-              <h2>{selectedFacility?.name ?? 'Konum secin'}</h2>
+              <span>{activeTool === 'route' ? 'Yol Tarifi' : 'En Yakin Araclar'}</span>
+              <h2>{activeTool === 'route' ? 'Rota' : selectedTarget?.label ?? 'Konum secin'}</h2>
             </div>
-            <Navigation size={22} />
+            {activeTool === 'route' ? <Route size={22} /> : <Navigation size={22} />}
           </div>
 
-          <label className="field-stack panel-field compact-field">
-            <span>Takip Saglayicisi</span>
-            <select value={selectedProviderCode} onChange={event => setSelectedProviderCode(event.target.value)}>
-              <option value="">Tumu</option>
-              {providers
-                .filter(provider => provider.isActive)
-                .map(provider => (
-                  <option key={provider.code} value={provider.code}>{provider.name}</option>
-                ))}
-            </select>
-          </label>
+          <div className="segmented-actions nearest-tool-switch">
+            <button type="button" className={activeTool === 'nearest' ? 'active' : ''} onClick={() => setActiveTool('nearest')}>
+              En yakin arac bul
+            </button>
+            <button type="button" className={activeTool === 'route' ? 'active' : ''} onClick={() => setActiveTool('route')}>
+              Rota bul
+            </button>
+          </div>
 
-          <label className="field-stack panel-field compact-field">
-            <span>Arac Turu</span>
-            <select value={selectedVehicleType} onChange={event => setSelectedVehicleType(event.target.value)}>
-              <option value="">Tum arac turleri</option>
-              {availableVehicleTypes.map(vehicleType => (
-                <option key={vehicleType.code} value={vehicleType.code}>
-                  {vehicleType.label} ({vehicleType.count})
-                </option>
-              ))}
-            </select>
-          </label>
+          {activeTool === 'route' ? (
+            <>
+              <label className="field-stack compact-field">
+                <span>Cikis Noktasi</span>
+                <select value={selectedFacility?.id ?? ''} onChange={event => setRouteOriginFacilityId(event.target.value)}>
+                  {visibleFacilities.length === 0 && <option value="">Gorunen tesis yok</option>}
+                  {visibleFacilities.map(facility => (
+                    <option key={facility.id} value={facility.id}>{facility.name}</option>
+                  ))}
+                </select>
+              </label>
 
-          <div className="nearest-summary-grid">
+              <div className="field-stack compact-field">
+                <span>Hedef</span>
+                <div className="inline-input">
+                  <Search size={18} />
+                  <input
+                    value={routeAddressQuery}
+                    onChange={event => {
+                      setRouteAddressQuery(event.target.value);
+                      setRouteDestinationId('');
+                    }}
+                    placeholder="Mahalle + cadde ara"
+                  />
+                  {routeAddressQuery && (
+                    <button className="plain-icon-button" type="button" onClick={() => setRouteAddressQuery('')} aria-label="Temizle">
+                      x
+                    </button>
+                  )}
+                </div>
+                {routeAddressQuery.trim().length === 0 && destinations.length > 0 && (
+                  <div className="saved-destination-list">
+                    {destinations.map(destination => (
+                      <button
+                        key={destination.id}
+                        className={String(destination.id) === String(routeDestinationId) ? 'selected' : ''}
+                        type="button"
+                        onClick={() => handleSelectRouteDestination(String(destination.id))}
+                      >
+                        <MapPin size={15} />
+                        <span>{destination.name}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {routeSuggestions.length > 0 && (
+                  <div className="suggestion-list compact-suggestion-list">
+                    {routeSuggestions.map(suggestion => (
+                      <button
+                        key={`${suggestion.latitude}:${suggestion.longitude}`}
+                        type="button"
+                        onClick={() => handleSelectRouteSuggestion(suggestion)}
+                      >
+                        <MapPin size={16} />
+                        <span>{suggestion.displayName}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="segmented-actions">
+                <button type="button" onClick={handleRouteAddressSearch}>
+                  Adres Ara
+                </button>
+                <button type="button" onClick={() => setIsRoutePickMode(true)} className={isRoutePickMode ? 'active' : ''}>
+                  Haritadan Sec
+                </button>
+              </div>
+
+              {routeTarget && (
+                <div className="address-card compact-address-card">
+                  <MapPin size={18} />
+                  <div>
+                    <strong>{routeTarget.label}</strong>
+                    <span>{routeTarget.latitude.toFixed(5)}, {routeTarget.longitude.toFixed(5)}</span>
+                  </div>
+                </div>
+              )}
+
+              <button className="primary-action-button" type="button" onClick={handleRoute}>
+                <Navigation size={18} />
+                Yol Tarifi Al
+              </button>
+
+              {routeResult && (
+                <>
+                  <section className="route-summary">
+                    <div>
+                      <span>Mesafe</span>
+                      <strong>{formatDistance(routeResult.distanceMeters)}</strong>
+                    </div>
+                    <div>
+                      <span>Tahmini Sure</span>
+                      <strong>{formatDuration(routeResult.durationSeconds)}</strong>
+                    </div>
+                    {routeResult.steps.length > 0 && (
+                      <ol>
+                        {routeResult.steps.map((step, index) => (
+                          <li key={`${step.instruction}-${index}`}>
+                            <span>{step.instruction}</span>
+                            <small>{formatDistance(step.distanceMeters)}</small>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </section>
+
+                  <button className="primary-action-button secondary-action-button" type="button" onClick={handleSaveRoute}>
+                    <Save size={18} />
+                    Save rota
+                  </button>
+                </>
+              )}
+
+              {routeNotice && <div className="inline-notice success">{routeNotice}</div>}
+            </>
+          ) : (
+            <>
+              <div className="nearest-source-picker">
+                <button type="button" className={nearestTargetSource === 'map' ? 'active' : ''} onClick={() => handleSelectNearestSource('map')}>
+                  <MapPin size={16} />
+                  Harita
+                </button>
+                <button type="button" className={nearestTargetSource === 'address' ? 'active' : ''} onClick={() => handleSelectNearestSource('address')}>
+                  <Search size={16} />
+                  Adres
+                </button>
+                <button type="button" className={nearestTargetSource === 'facility' ? 'active' : ''} onClick={() => handleSelectNearestSource('facility')}>
+                  <Building2 size={16} />
+                  Tesis
+                </button>
+                <button type="button" className={nearestTargetSource === 'route' ? 'active' : ''} onClick={() => handleSelectNearestSource('route')}>
+                  <Route size={16} />
+                  Rota
+                </button>
+              </div>
+
+              {nearestTargetSource === 'route' && (
+                <div className="saved-route-list">
+                  {savedRoutes.length === 0 ? (
+                    <div className="empty-panel-state compact-empty-state">
+                      <strong>Kayitli rota yok</strong>
+                      <span>Rota bul panelinden rota kaydedin.</span>
+                    </div>
+                  ) : (
+                    savedRoutes.map(savedRoute => (
+                      <button
+                        key={savedRoute.id}
+                        className={selectedSavedRouteId === savedRoute.id ? 'selected' : ''}
+                        type="button"
+                        onClick={() => handleSelectSavedRoute(savedRoute.id)}
+                      >
+                        <Route size={17} />
+                        <span>
+                          <strong>{savedRoute.name}</strong>
+                          <small>{formatDuration(savedRoute.route.durationSeconds)} / {formatDistance(savedRoute.route.distanceMeters)}</small>
+                        </span>
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              <label className="field-stack compact-field">
+                <span>Arac Turu</span>
+                <select value={selectedVehicleType} onChange={event => setSelectedVehicleType(event.target.value)}>
+                  <option value="">Tum arac turleri</option>
+                  {availableVehicleTypes.map(vehicleType => (
+                    <option key={vehicleType.code} value={vehicleType.code}>
+                      {vehicleType.label} ({vehicleType.count})
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="nearest-summary-grid">
             <div>
               <Clock3 size={18} />
               <span>En yakin sure</span>
@@ -645,80 +1420,86 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               <span>Uygun arac</span>
               <strong>{filteredVehicles.length}</strong>
             </div>
-          </div>
-
-          {isRouteRefreshing && (
-            <div className="nearest-refresh-note">
-              <Clock3 size={15} />
-              <span>Sureler arka planda guncelleniyor.</span>
-            </div>
-          )}
-
-          {bestByType.length > 0 && (
-            <section className="nearest-type-leaders">
-              <h3>Turune gore en yakin</h3>
-              {bestByType.map(routeResult => (
-                <button
-                  key={getVehicleKey(routeResult.vehicle)}
-                  type="button"
-                  onClick={() => {
-                    setSelectedVehicleType(normalizeType(routeResult.vehicle.vehicleType, 'DEFAULT'));
-                    setSelectedVehicleKey(getVehicleKey(routeResult.vehicle));
-                  }}
-                >
-                  <span>{formatVehicleTypeLabel(routeResult.vehicle.vehicleType)}</span>
-                  <strong>{formatDuration(routeResult.route.durationSeconds)}</strong>
-                </button>
-              ))}
-            </section>
-          )}
-
-          <div className="nearest-list">
-            {isRouteLoading ? (
-              <div className="empty-panel-state">
-                <strong>Rotalar hesaplaniyor</strong>
-                <span>Secilen konuma gore arac sureleri yenileniyor.</span>
               </div>
-            ) : nearestRoutes.length === 0 ? (
-              <div className="empty-panel-state">
-                <strong>Sonuc yok</strong>
-                <span>{selectedProviderName} icin bu filtrede rota bulunamadi.</span>
+
+              {isRouteRefreshing && (
+                <div className="nearest-refresh-note">
+                  <Clock3 size={15} />
+                  <span>Sureler arka planda guncelleniyor.</span>
+                </div>
+              )}
+
+              {bestByType.length > 0 && (
+                <section className="nearest-type-leaders">
+                  <h3>Turune gore en yakin</h3>
+                  {bestByType.map(routeResult => (
+                    <button
+                      key={getVehicleKey(routeResult.vehicle)}
+                      type="button"
+                      onClick={() => {
+                        setSelectedVehicleType(normalizeType(routeResult.vehicle.vehicleType, 'DEFAULT'));
+                        setSelectedVehicleKey(getVehicleKey(routeResult.vehicle));
+                      }}
+                    >
+                      <span>{formatVehicleTypeLabel(routeResult.vehicle.vehicleType)}</span>
+                      <strong>{formatDuration(routeResult.route.durationSeconds)}</strong>
+                    </button>
+                  ))}
+                </section>
+              )}
+
+              <div className="nearest-list">
+                {isRouteLoading ? (
+                  <div className="empty-panel-state">
+                    <strong>Rotalar hesaplaniyor</strong>
+                    <span>Secilen konuma gore arac sureleri yenileniyor.</span>
+                  </div>
+                ) : nearestRoutes.length === 0 ? (
+                  <div className="empty-panel-state">
+                    <strong>{selectedTarget || selectedSavedRoute ? 'Sonuc yok' : 'Konum secin'}</strong>
+                    <span>
+                      {selectedTarget || selectedSavedRoute
+                        ? `${selectedProviderName} icin bu filtrede rota bulunamadi.`
+                        : 'Harita, adres, tesis veya kayitli rota secin.'}
+                    </span>
+                  </div>
+                ) : (
+                  nearestRoutes.map((routeResult, index) => (
+                    <button
+                      key={getVehicleKey(routeResult.vehicle)}
+                      className={`nearest-result-row ${selectedVehicleKey === getVehicleKey(routeResult.vehicle) ? 'selected' : ''}`}
+                      type="button"
+                      onClick={() => setSelectedVehicleKey(getVehicleKey(routeResult.vehicle))}
+                    >
+                      <strong>{index + 1}</strong>
+                      <div>
+                        <span>{routeResult.vehicle.plate}</span>
+                        <small>{formatVehicleTypeLabel(routeResult.vehicle.vehicleType)}</small>
+                      </div>
+                      <div>
+                        <em>{formatDuration(routeResult.route.durationSeconds)}</em>
+                        <small>{formatDistance(routeResult.route.distanceMeters)}</small>
+                      </div>
+                    </button>
+                  ))
+                )}
               </div>
-            ) : (
-              nearestRoutes.map((routeResult, index) => (
-                <button
-                  key={getVehicleKey(routeResult.vehicle)}
-                  className={`nearest-result-row ${selectedVehicleKey === getVehicleKey(routeResult.vehicle) ? 'selected' : ''}`}
-                  type="button"
-                  onClick={() => setSelectedVehicleKey(getVehicleKey(routeResult.vehicle))}
-                >
-                  <strong>{index + 1}</strong>
+
+              {selectedVehicle && (
+                <section className="nearest-selected-card">
+                  <CarFront size={22} />
                   <div>
-                    <span>{routeResult.vehicle.plate}</span>
-                    <small>{formatVehicleTypeLabel(routeResult.vehicle.vehicleType)}</small>
+                    <span>Secili arac</span>
+                    <strong>{selectedVehicle.plate}</strong>
+                    <small>{selectedVehicle.vehicleName}</small>
                   </div>
                   <div>
-                    <em>{formatDuration(routeResult.route.durationSeconds)}</em>
-                    <small>{formatDistance(routeResult.route.distanceMeters)}</small>
+                    <Gauge size={16} />
+                    <strong>{selectedVehicle.speed} km/h</strong>
                   </div>
-                </button>
-              ))
-            )}
-          </div>
-
-          {selectedVehicle && (
-            <section className="nearest-selected-card">
-              <CarFront size={22} />
-              <div>
-                <span>Secili arac</span>
-                <strong>{selectedVehicle.plate}</strong>
-                <small>{selectedVehicle.vehicleName}</small>
-              </div>
-              <div>
-                <Gauge size={16} />
-                <strong>{selectedVehicle.speed} km/h</strong>
-              </div>
-            </section>
+                </section>
+              )}
+            </>
           )}
         </aside>
       </section>
