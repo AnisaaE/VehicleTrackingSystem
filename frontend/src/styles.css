@@ -2449,6 +2449,137 @@ h2 {
   overflow: hidden;
 }
 
+.driver-route-dashboard {
+  grid-template-rows: none;
+  grid-template-columns: minmax(420px, 1fr) 320px;
+  gap: 0;
+  padding: 0;
+  background: #eef2f7;
+}
+
+.driver-routes-panel {
+  gap: 0;
+}
+
+.driver-panel-notice {
+  margin: 10px 14px 0;
+}
+
+.driver-panel-summary {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 12px 14px;
+}
+
+.driver-route-dashboard .driver-trip-list {
+  padding: 0 14px 14px;
+}
+
+.driver-route-dashboard .driver-trip-card {
+  cursor: default;
+}
+
+.driver-route-dashboard .driver-trip-card.selected {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  box-shadow: inset 3px 0 0 #2563eb;
+}
+
+.driver-card-actions button {
+  width: 100%;
+  min-height: 38px;
+  border: 1px solid #d9e1ea;
+  border-radius: 8px;
+  background: #fff;
+  color: #2563eb;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.driver-card-actions button:hover {
+  border-color: #93c5fd;
+  background: #eff6ff;
+}
+
+.driver-map-stage {
+  min-height: 0;
+}
+
+.driver-route-map {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.driver-live-vehicle-marker {
+  background: transparent;
+}
+
+.driver-live-vehicle-marker span {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 4px solid #2563eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #2563eb;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.95),
+    0 10px 22px rgba(15, 23, 42, 0.24);
+}
+
+.driver-live-vehicle-marker svg {
+  width: 25px;
+  height: 25px;
+  fill: currentColor;
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+.driver-navigation-panel {
+  gap: 12px;
+}
+
+.driver-next-step {
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  background: #eff6ff;
+  display: grid;
+  gap: 5px;
+  padding: 12px;
+}
+
+.driver-next-step span {
+  color: #2563eb;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.driver-next-step strong {
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.driver-next-step small {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.driver-step-list {
+  display: block;
+}
+
+.driver-step-list ol {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.driver-history-list-dashboard {
+  grid-template-rows: auto minmax(0, 1fr);
+  padding: 14px;
+}
+
 .driver-summary {
   display: grid;
   grid-template-columns: repeat(2, minmax(180px, 1fr));
@@ -2881,6 +3012,10 @@ h2 {
     grid-template-columns: 260px minmax(360px, 1fr) 310px;
   }
 
+  .driver-route-dashboard {
+    grid-template-columns: minmax(360px, 1fr) 300px;
+  }
+
   .driver-trip-grid {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
@@ -2910,13 +3045,19 @@ h2 {
   .tracking-dashboard,
   .tracking-dashboard.has-details,
   .nearest-dashboard,
+  .driver-route-dashboard,
   .users-dashboard {
     grid-template-columns: 260px minmax(0, 1fr);
   }
 
+  .driver-route-dashboard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .route-panel,
   .details-panel,
-  .nearest-results-panel {
+  .nearest-results-panel,
+  .driver-navigation-panel {
     position: absolute;
     top: 52px;
     right: 0;
@@ -2964,6 +3105,7 @@ h2 {
   .tracking-dashboard,
   .tracking-dashboard.has-details,
   .nearest-dashboard,
+  .driver-route-dashboard,
   .users-dashboard {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -2980,6 +3122,10 @@ h2 {
 
   .map-stage {
     grid-column: 1;
+  }
+
+  .driver-navigation-panel {
+    left: auto;
   }
 
   .user-row-card,

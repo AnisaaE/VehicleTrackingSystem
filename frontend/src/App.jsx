@@ -32,7 +32,7 @@ import {
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
 import { NearestVehiclesPage } from './pages/NearestVehiclesPage';
-import { DriverTripsPage } from './pages/DriverTripsPage';
+import { DriverTripHistoryPage, DriverTripsPage } from './pages/DriverTripsPage';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
 import { AdminDriverHistoryPage } from './pages/AdminDriverHistoryPage';
@@ -1337,6 +1337,17 @@ export default function App() {
           element={requireRoles(
             ['DRIVER'],
             <DriverTripsPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
+        />
+        <RouterRoute
+          path="/my-trips/history"
+          element={requireRoles(
+            ['DRIVER'],
+            <DriverTripHistoryPage
               currentUser={user}
               municipalityName={runtimeConfig.municipalityName}
               onLogout={handleLogout}
