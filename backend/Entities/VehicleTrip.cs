@@ -16,6 +16,10 @@ public sealed class VehicleTrip
 
     public Employee? AssignedByEmployee { get; set; }
 
+    public int? CompletedByEmployeeId { get; set; }
+
+    public Employee? CompletedByEmployee { get; set; }
+
     public int? OriginFacilityId { get; set; }
 
     public int? DestinationId { get; set; }
@@ -33,6 +37,10 @@ public sealed class VehicleTrip
     public DateTimeOffset? CompletedAt { get; set; }
 
     public DateTimeOffset? CancelledAt { get; set; }
+
+    public double? CompletionLatitude { get; set; }
+
+    public double? CompletionLongitude { get; set; }
 
     public double? EstimatedDistanceMeters { get; set; }
 

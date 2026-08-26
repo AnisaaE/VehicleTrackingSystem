@@ -83,9 +83,16 @@ public sealed class VehicleTripsController : ControllerBase
         CreateVehicleTripRequest request,
         CancellationToken cancellationToken)
     {
+        var employeeId = User.GetEmployeeId();
+
+        if (!employeeId.HasValue)
+        {
+            return Unauthorized(new ErrorResponse("User token does not include an employee id."));
+        }
+
         try
         {
-            var trip = await _vehicleTripService.CreateAsync(request, cancellationToken);
+            var trip = await _vehicleTripService.CreateAsync(request, employeeId.Value, cancellationToken);
             return CreatedAtAction(nameof(GetActive), new { id = trip.Id }, trip);
         }
         catch (InvalidOperationException exception)
@@ -125,7 +132,7 @@ public sealed class VehicleTripsController : ControllerBase
         }
         else
         {
-            trip = await _vehicleTripService.CompleteAsync(id, cancellationToken);
+            trip = await _vehicleTripService.CompleteAsync(id, User.GetEmployeeId(), cancellationToken);
         }
 
         if (trip is null)

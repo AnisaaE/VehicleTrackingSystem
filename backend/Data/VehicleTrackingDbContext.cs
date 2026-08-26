@@ -248,6 +248,11 @@ public class VehicleTrackingDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(trip => trip.AssignedByEmployeeId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(trip => trip.CompletedByEmployee)
+                .WithMany()
+                .HasForeignKey(trip => trip.CompletedByEmployeeId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<VehicleProviderSeen>(entity =>

@@ -29,6 +29,14 @@ function formatDistance(value) {
   return value >= 1000 ? `${(value / 1000).toFixed(1)} km` : `${Math.round(value)} m`;
 }
 
+function formatCoordinates(latitude, longitude) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return '-';
+  }
+
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
 function destinationLabel(trip) {
   return trip.destinationName ?? `${trip.destinationLatitude.toFixed(5)}, ${trip.destinationLongitude.toFixed(5)}`;
 }
@@ -110,7 +118,10 @@ export function AdminDriverHistoryPage({ currentUser, municipalityName, onLogout
                 <div><Clock3 size={17} /><span>Gercek sure</span><strong>{formatDuration(trip.actualDurationSeconds)}</strong></div>
                 <div><Route size={17} /><span>Tahmin mesafe</span><strong>{formatDistance(trip.estimatedDistanceMeters)}</strong></div>
                 <div><CheckCircle2 size={17} /><span>Atanma</span><strong>{formatDateTime(trip.assignedAt)}</strong></div>
+                <div><CheckCircle2 size={17} /><span>Gorevlendiren</span><strong>{trip.assignedByEmployeeName ?? '-'}</strong></div>
                 <div><CheckCircle2 size={17} /><span>Tamamlanma</span><strong>{formatDateTime(trip.completedAt)}</strong></div>
+                <div><CheckCircle2 size={17} /><span>Tamamlayan</span><strong>{trip.completedByEmployeeName ?? '-'}</strong></div>
+                <div><MapPin size={17} /><span>Tamamlanan konum</span><strong>{formatCoordinates(trip.completionLatitude, trip.completionLongitude)}</strong></div>
               </div>
             </article>
           ))}

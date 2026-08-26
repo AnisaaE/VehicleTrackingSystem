@@ -33,6 +33,14 @@ function tripDestinationLabel(trip) {
   return trip.destinationName ?? `${trip.destinationLatitude.toFixed(5)}, ${trip.destinationLongitude.toFixed(5)}`;
 }
 
+function completionLocationLabel(trip) {
+  if (!Number.isFinite(trip.completionLatitude) || !Number.isFinite(trip.completionLongitude)) {
+    return 'Tamamlanma konumu yok';
+  }
+
+  return `${trip.completionLatitude.toFixed(5)}, ${trip.completionLongitude.toFixed(5)}`;
+}
+
 function vehicleTypeLabel(trip) {
   return trip.vehicleTypeName ?? trip.vehicleTypeCode ?? 'Diger araclar';
 }
@@ -278,6 +286,8 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
                       <div>
                         <strong>{trip.originFacilityName ?? 'Mevcut konum'} → {tripDestinationLabel(trip)}</strong>
                         <small>{trip.vehiclePlate} · {trip.driverName ?? 'Sofor atanmadi'}</small>
+                        <small>Gorevlendiren: {trip.assignedByEmployeeName ?? '-'}</small>
+                        <small>Tamamlayan: {trip.completedByEmployeeName ?? '-'} · {completionLocationLabel(trip)}</small>
                       </div>
                       <span>{trip.status}</span>
                       <time>{formatDateTime(trip.assignedAt)}</time>

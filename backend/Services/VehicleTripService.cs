@@ -107,8 +107,14 @@ public sealed class VehicleTripService : IVehicleTripService
 
     public async Task<VehicleTripDto> CreateAsync(
         CreateVehicleTripRequest request,
+        int assignedByEmployeeId,
         CancellationToken cancellationToken = default)
     {
+        if (!request.DriverId.HasValue)
+        {
+            throw new InvalidOperationException("Gorev olusturmak icin sofor secin.");
+        }
+
         var currentLocation = await _vehicleLocationService.GetCurrentLocationByPlateAsync(
             request.ProviderCode,
             request.VehiclePlate,
@@ -152,7 +158,7 @@ public sealed class VehicleTripService : IVehicleTripService
         {
             VehicleId = vehicle.Id,
             DriverId = request.DriverId,
-            AssignedByEmployeeId = request.AssignedByEmployeeId,
+            AssignedByEmployeeId = assignedByEmployeeId,
             OriginFacilityId = request.OriginFacilityId,
             DestinationId = request.DestinationId,
             DestinationLatitude = destination.Latitude,
@@ -177,9 +183,12 @@ public sealed class VehicleTripService : IVehicleTripService
 
     public async Task<VehicleTripDto?> CompleteAsync(
         int id,
+        int? completedByEmployeeId,
         CancellationToken cancellationToken = default)
     {
         var trip = await _dbContext.VehicleTrips
+            .Include(currentTrip => currentTrip.Vehicle)
+            .ThenInclude(vehicle => vehicle.Provider)
             .FirstOrDefaultAsync(currentTrip => currentTrip.Id == id, cancellationToken);
 
         if (trip is null)
@@ -187,7 +196,7 @@ public sealed class VehicleTripService : IVehicleTripService
             return null;
         }
 
-        CompleteTrip(trip, DateTimeOffset.UtcNow);
+        await CompleteTripAsync(trip, completedByEmployeeId, DateTimeOffset.UtcNow, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var updated = await QueryTrips()
@@ -202,6 +211,8 @@ public sealed class VehicleTripService : IVehicleTripService
         CancellationToken cancellationToken = default)
     {
         var trip = await _dbContext.VehicleTrips
+            .Include(currentTrip => currentTrip.Vehicle)
+            .ThenInclude(vehicle => vehicle.Provider)
             .FirstOrDefaultAsync(
                 currentTrip => currentTrip.Id == id && currentTrip.DriverId == driverId,
                 cancellationToken);
@@ -211,7 +222,7 @@ public sealed class VehicleTripService : IVehicleTripService
             return null;
         }
 
-        CompleteTrip(trip, DateTimeOffset.UtcNow);
+        await CompleteTripAsync(trip, driverId, DateTimeOffset.UtcNow, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var updated = await QueryTrips()
@@ -281,7 +292,12 @@ public sealed class VehicleTripService : IVehicleTripService
 
             if (distanceToDestination <= CompletionRadiusMeters && location.Speed <= 10)
             {
-                CompleteTrip(trip, DateTimeOffset.UtcNow);
+                CompleteTrip(
+                    trip,
+                    DateTimeOffset.UtcNow,
+                    null,
+                    (double)location.Latitude,
+                    (double)location.Longitude);
             }
         }
 
@@ -295,7 +311,8 @@ public sealed class VehicleTripService : IVehicleTripService
             .Include(trip => trip.Vehicle)
             .ThenInclude(vehicle => vehicle.VehicleType)
             .Include(trip => trip.Driver)
-            .Include(trip => trip.AssignedByEmployee);
+            .Include(trip => trip.AssignedByEmployee)
+            .Include(trip => trip.CompletedByEmployee);
 
     private async Task<(double Latitude, double Longitude)> ResolveDestinationAsync(
         CreateVehicleTripRequest request,
@@ -403,6 +420,10 @@ public sealed class VehicleTripService : IVehicleTripService
             trip.Vehicle.Provider.Code,
             trip.DriverId,
             trip.Driver?.FullName,
+            trip.AssignedByEmployeeId,
+            trip.AssignedByEmployee?.FullName,
+            trip.CompletedByEmployeeId,
+            trip.CompletedByEmployee?.FullName,
             trip.OriginFacilityId,
             originName,
             trip.DestinationId,
@@ -414,6 +435,8 @@ public sealed class VehicleTripService : IVehicleTripService
             trip.StartedAt,
             trip.CompletedAt,
             trip.CancelledAt,
+            trip.CompletionLatitude,
+            trip.CompletionLongitude,
             trip.EstimatedDistanceMeters,
             trip.EstimatedDurationSeconds,
             trip.ActualDistanceMeters,
@@ -422,10 +445,37 @@ public sealed class VehicleTripService : IVehicleTripService
             trip.Notes);
     }
 
-    private static void CompleteTrip(VehicleTrip trip, DateTimeOffset completedAt)
+    private async Task CompleteTripAsync(
+        VehicleTrip trip,
+        int? completedByEmployeeId,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken)
+    {
+        var currentLocation = await _vehicleLocationService.GetCurrentLocationByPlateAsync(
+            trip.Vehicle.Provider.Code,
+            trip.Vehicle.Plate,
+            cancellationToken);
+
+        CompleteTrip(
+            trip,
+            completedAt,
+            completedByEmployeeId,
+            currentLocation is null ? null : (double)currentLocation.Latitude,
+            currentLocation is null ? null : (double)currentLocation.Longitude);
+    }
+
+    private static void CompleteTrip(
+        VehicleTrip trip,
+        DateTimeOffset completedAt,
+        int? completedByEmployeeId = null,
+        double? completionLatitude = null,
+        double? completionLongitude = null)
     {
         trip.Status = "COMPLETED";
         trip.CompletedAt = completedAt;
+        trip.CompletedByEmployeeId ??= completedByEmployeeId;
+        trip.CompletionLatitude ??= completionLatitude;
+        trip.CompletionLongitude ??= completionLongitude;
         trip.ActualDistanceMeters ??= trip.EstimatedDistanceMeters;
 
         trip.ActualDurationSeconds ??= Math.Max(

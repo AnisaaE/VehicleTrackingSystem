@@ -26,10 +26,12 @@ public interface IVehicleTripService
 
     Task<VehicleTripDto> CreateAsync(
         CreateVehicleTripRequest request,
+        int assignedByEmployeeId,
         CancellationToken cancellationToken = default);
 
     Task<VehicleTripDto?> CompleteAsync(
         int id,
+        int? completedByEmployeeId,
         CancellationToken cancellationToken = default);
 
     Task<VehicleTripDto?> CompleteForDriverAsync(

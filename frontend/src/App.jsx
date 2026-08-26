@@ -748,12 +748,16 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       return;
     }
 
+    if (!selectedDriverId) {
+      setRouteError('Gorev icin once sofor secin.');
+      return;
+    }
+
     try {
       const trip = await createVehicleTrip({
         providerCode: selectedVehicle.provider,
         vehiclePlate: selectedVehicle.plate,
         driverId: selectedDriverId ? Number(selectedDriverId) : null,
-        assignedByEmployeeId: null,
         originFacilityId: originFacilityId ? Number(originFacilityId) : null,
         destinationId: selectedDestinationId ? Number(selectedDestinationId) : null,
         destinationLatitude: selectedDestinationId ? null : manualDestinationTarget?.latitude,
@@ -1208,7 +1212,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                   </button>
                 </div>
               ) : canManageTrips ? (
-                <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!destinationTarget}>
+                <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!destinationTarget || !selectedDriverId}>
                   <Navigation size={18} />
                   Gorevlendir
                 </button>

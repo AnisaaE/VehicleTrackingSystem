@@ -74,6 +74,14 @@ function formatDateTime(value) {
   }).format(new Date(value));
 }
 
+function formatCoordinates(latitude, longitude) {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return '-';
+  }
+
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
 function MapFocus({ destination, focusKey, positions, vehicle }) {
   const map = useMap();
   const lastFocusKeyRef = useRef(null);
@@ -493,6 +501,21 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
                   <CheckCircle2 size={17} />
                   <span>Atanma</span>
                   <strong>{formatDateTime(trip.assignedAt)}</strong>
+                </div>
+                <div>
+                  <CheckCircle2 size={17} />
+                  <span>Gorevlendiren</span>
+                  <strong>{trip.assignedByEmployeeName ?? '-'}</strong>
+                </div>
+                <div>
+                  <CheckCircle2 size={17} />
+                  <span>Tamamlayan</span>
+                  <strong>{trip.completedByEmployeeName ?? '-'}</strong>
+                </div>
+                <div>
+                  <MapPin size={17} />
+                  <span>Tamamlanan konum</span>
+                  <strong>{formatCoordinates(trip.completionLatitude, trip.completionLongitude)}</strong>
                 </div>
               </div>
             </article>
