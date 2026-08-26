@@ -966,6 +966,20 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
       .catch(nextError => setRouteError(nextError.message));
   };
 
+  const handleNearestSearch = () => {
+    if (nearestTargetSource === 'address' && addressQuery.trim().length >= 3 && !selectedTarget) {
+      handleAddressSearch();
+      return;
+    }
+
+    if (!selectedTarget && !selectedSavedRoute) {
+      setRouteError('En yakin arac icin harita, adres, tesis veya rota secin.');
+      return;
+    }
+
+    refreshNearestRoutes({ showLoading: true });
+  };
+
   const handleRouteAddressSearch = () => {
     if (routeAddressQuery.trim().length < 3) {
       return;
@@ -1080,55 +1094,230 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
             </button>
           </div>
 
-          <div className="field-stack panel-field">
-            <span>Adres ara</span>
-            <div className="inline-input">
-              <Search size={18} />
-              <input
-                value={addressQuery}
-                onChange={event => setAddressQuery(event.target.value)}
-                placeholder="Mahalle, cadde veya yer ara"
-              />
-              {addressQuery && (
-                <button className="plain-icon-button" type="button" onClick={() => setAddressQuery('')} aria-label="Temizle">
-                  x
-                </button>
-              )}
+          <div className="nearest-left-controls">
+            <div className="segmented-actions nearest-tool-switch">
+              <button type="button" className={activeTool === 'nearest' ? 'active' : ''} onClick={() => setActiveTool('nearest')}>
+                En yakin arac bul
+              </button>
+              <button type="button" className={activeTool === 'route' ? 'active' : ''} onClick={() => setActiveTool('route')}>
+                Rota bul
+              </button>
             </div>
-            {suggestions.length > 0 && (
-              <div className="suggestion-list compact-suggestion-list nearest-suggestion-list">
-                {suggestions.map(suggestion => (
-                  <button
-                    key={`${suggestion.latitude}:${suggestion.longitude}`}
-                    type="button"
-                    onClick={() => handleSelectSuggestion(suggestion)}
-                  >
-                    <MapPin size={16} />
-                    <span>{suggestion.displayName}</span>
+
+            {activeTool === 'route' ? (
+              <>
+                <label className="field-stack compact-field">
+                  <span>Cikis Noktasi</span>
+                  <select value={selectedFacility?.id ?? ''} onChange={event => setRouteOriginFacilityId(event.target.value)}>
+                    {visibleFacilities.length === 0 && <option value="">Gorunen tesis yok</option>}
+                    {visibleFacilities.map(facility => (
+                      <option key={facility.id} value={facility.id}>{facility.name}</option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="field-stack compact-field">
+                  <span>Hedef</span>
+                  <div className="inline-input">
+                    <Search size={18} />
+                    <input
+                      value={routeAddressQuery}
+                      onChange={event => {
+                        setRouteAddressQuery(event.target.value);
+                        setRouteDestinationId('');
+                      }}
+                      placeholder="Mahalle + cadde ara"
+                    />
+                    {routeAddressQuery && (
+                      <button className="plain-icon-button" type="button" onClick={() => setRouteAddressQuery('')} aria-label="Temizle">
+                        x
+                      </button>
+                    )}
+                  </div>
+                  {routeAddressQuery.trim().length === 0 && destinations.length > 0 && (
+                    <div className="saved-destination-list">
+                      {destinations.map(destination => (
+                        <button
+                          key={destination.id}
+                          className={String(destination.id) === String(routeDestinationId) ? 'selected' : ''}
+                          type="button"
+                          onClick={() => handleSelectRouteDestination(String(destination.id))}
+                        >
+                          <MapPin size={15} />
+                          <span>{destination.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {routeSuggestions.length > 0 && (
+                    <div className="suggestion-list compact-suggestion-list">
+                      {routeSuggestions.map(suggestion => (
+                        <button
+                          key={`${suggestion.latitude}:${suggestion.longitude}`}
+                          type="button"
+                          onClick={() => handleSelectRouteSuggestion(suggestion)}
+                        >
+                          <MapPin size={16} />
+                          <span>{suggestion.displayName}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="segmented-actions">
+                  <button type="button" onClick={handleRouteAddressSearch}>
+                    Adres Ara
                   </button>
-                ))}
-              </div>
+                  <button type="button" onClick={() => setIsRoutePickMode(true)} className={isRoutePickMode ? 'active' : ''}>
+                    Haritadan Sec
+                  </button>
+                </div>
+
+                {routeTarget && (
+                  <div className="address-card compact-address-card">
+                    <MapPin size={18} />
+                    <div>
+                      <strong>{routeTarget.label}</strong>
+                      <span>{routeTarget.latitude.toFixed(5)}, {routeTarget.longitude.toFixed(5)}</span>
+                    </div>
+                  </div>
+                )}
+
+                <button className="primary-action-button" type="button" onClick={handleRoute}>
+                  <Navigation size={18} />
+                  Yol Tarifi Al
+                </button>
+
+                {routeResult && (
+                  <button className="primary-action-button secondary-action-button" type="button" onClick={handleSaveRoute}>
+                    <Save size={18} />
+                    Save rota
+                  </button>
+                )}
+
+                {routeNotice && <div className="inline-notice success">{routeNotice}</div>}
+              </>
+            ) : (
+              <>
+                <div className="nearest-source-picker">
+                  <button type="button" className={nearestTargetSource === 'map' ? 'active' : ''} onClick={() => handleSelectNearestSource('map')}>
+                    <MapPin size={16} />
+                    Harita
+                  </button>
+                  <button type="button" className={nearestTargetSource === 'address' ? 'active' : ''} onClick={() => handleSelectNearestSource('address')}>
+                    <Search size={16} />
+                    Adres
+                  </button>
+                  <button type="button" className={nearestTargetSource === 'facility' ? 'active' : ''} onClick={() => handleSelectNearestSource('facility')}>
+                    <Building2 size={16} />
+                    Tesis
+                  </button>
+                  <button type="button" className={nearestTargetSource === 'route' ? 'active' : ''} onClick={() => handleSelectNearestSource('route')}>
+                    <Route size={16} />
+                    Rota
+                  </button>
+                </div>
+
+                {nearestTargetSource === 'address' && (
+                  <>
+                    <div className="field-stack compact-field">
+                      <span>Adres ara</span>
+                      <div className="inline-input">
+                        <Search size={18} />
+                        <input
+                          value={addressQuery}
+                          onChange={event => setAddressQuery(event.target.value)}
+                          placeholder="Mahalle, cadde veya yer ara"
+                        />
+                        {addressQuery && (
+                          <button className="plain-icon-button" type="button" onClick={() => setAddressQuery('')} aria-label="Temizle">
+                            x
+                          </button>
+                        )}
+                      </div>
+                      {suggestions.length > 0 && (
+                        <div className="suggestion-list compact-suggestion-list">
+                          {suggestions.map(suggestion => (
+                            <button
+                              key={`${suggestion.latitude}:${suggestion.longitude}`}
+                              type="button"
+                              onClick={() => handleSelectSuggestion(suggestion)}
+                            >
+                              <MapPin size={16} />
+                              <span>{suggestion.displayName}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="segmented-actions nearest-location-actions">
+                      <button type="button" onClick={handleAddressSearch}>
+                        Adres Ara
+                      </button>
+                      <button type="button" onClick={handleClearTarget}>
+                        Temizle
+                      </button>
+                    </div>
+
+                    {selectedTarget && (
+                      <div className="address-card compact-address-card nearest-target-card">
+                        <MapPin size={18} />
+                        <div>
+                          <strong>{selectedTarget.label}</strong>
+                          <span>{selectedTarget.subtitle ?? `${selectedTarget.latitude.toFixed(5)}, ${selectedTarget.longitude.toFixed(5)}`}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {nearestTargetSource === 'route' && (
+                  <div className="saved-route-list">
+                    {savedRoutes.length === 0 ? (
+                      <div className="empty-panel-state compact-empty-state">
+                        <strong>Kayitli rota yok</strong>
+                        <span>Rota bul panelinden rota kaydedin.</span>
+                      </div>
+                    ) : (
+                      savedRoutes.map(savedRoute => (
+                        <button
+                          key={savedRoute.id}
+                          className={selectedSavedRouteId === savedRoute.id ? 'selected' : ''}
+                          type="button"
+                          onClick={() => handleSelectSavedRoute(savedRoute.id)}
+                        >
+                          <Route size={17} />
+                          <span>
+                            <strong>{savedRoute.name}</strong>
+                            <small>{formatDuration(savedRoute.route.durationSeconds)} / {formatDistance(savedRoute.route.distanceMeters)}</small>
+                          </span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                <label className="field-stack compact-field">
+                  <span>Arac Turu</span>
+                  <select value={selectedVehicleType} onChange={event => setSelectedVehicleType(event.target.value)}>
+                    <option value="">Tum arac turleri</option>
+                    {availableVehicleTypes.map(vehicleType => (
+                      <option key={vehicleType.code} value={vehicleType.code}>
+                        {vehicleType.label} ({vehicleType.count})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <button className="primary-action-button" type="button" onClick={handleNearestSearch}>
+                  <Navigation size={18} />
+                  En Yakin Araclari Bul
+                </button>
+              </>
             )}
           </div>
-
-          <div className="segmented-actions nearest-location-actions">
-            <button type="button" onClick={handleAddressSearch}>
-              Adres Ara
-            </button>
-            <button type="button" onClick={handleClearTarget}>
-              Temizle
-            </button>
-          </div>
-
-          {selectedTarget && (
-            <div className="address-card compact-address-card nearest-target-card">
-              <MapPin size={18} />
-              <div>
-                <strong>{selectedTarget.label}</strong>
-                <span>{selectedTarget.subtitle ?? `${selectedTarget.latitude.toFixed(5)}, ${selectedTarget.longitude.toFixed(5)}`}</span>
-              </div>
-            </div>
-          )}
 
           {isFacilityListOpen && (
             <>
@@ -1224,191 +1413,33 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
             {activeTool === 'route' ? <Route size={22} /> : <Navigation size={22} />}
           </div>
 
-          <div className="segmented-actions nearest-tool-switch">
-            <button type="button" className={activeTool === 'nearest' ? 'active' : ''} onClick={() => setActiveTool('nearest')}>
-              En yakin arac bul
-            </button>
-            <button type="button" className={activeTool === 'route' ? 'active' : ''} onClick={() => setActiveTool('route')}>
-              Rota bul
-            </button>
-          </div>
-
           {activeTool === 'route' ? (
             <>
-              <label className="field-stack compact-field">
-                <span>Cikis Noktasi</span>
-                <select value={selectedFacility?.id ?? ''} onChange={event => setRouteOriginFacilityId(event.target.value)}>
-                  {visibleFacilities.length === 0 && <option value="">Gorunen tesis yok</option>}
-                  {visibleFacilities.map(facility => (
-                    <option key={facility.id} value={facility.id}>{facility.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="field-stack compact-field">
-                <span>Hedef</span>
-                <div className="inline-input">
-                  <Search size={18} />
-                  <input
-                    value={routeAddressQuery}
-                    onChange={event => {
-                      setRouteAddressQuery(event.target.value);
-                      setRouteDestinationId('');
-                    }}
-                    placeholder="Mahalle + cadde ara"
-                  />
-                  {routeAddressQuery && (
-                    <button className="plain-icon-button" type="button" onClick={() => setRouteAddressQuery('')} aria-label="Temizle">
-                      x
-                    </button>
-                  )}
-                </div>
-                {routeAddressQuery.trim().length === 0 && destinations.length > 0 && (
-                  <div className="saved-destination-list">
-                    {destinations.map(destination => (
-                      <button
-                        key={destination.id}
-                        className={String(destination.id) === String(routeDestinationId) ? 'selected' : ''}
-                        type="button"
-                        onClick={() => handleSelectRouteDestination(String(destination.id))}
-                      >
-                        <MapPin size={15} />
-                        <span>{destination.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {routeSuggestions.length > 0 && (
-                  <div className="suggestion-list compact-suggestion-list">
-                    {routeSuggestions.map(suggestion => (
-                      <button
-                        key={`${suggestion.latitude}:${suggestion.longitude}`}
-                        type="button"
-                        onClick={() => handleSelectRouteSuggestion(suggestion)}
-                      >
-                        <MapPin size={16} />
-                        <span>{suggestion.displayName}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="segmented-actions">
-                <button type="button" onClick={handleRouteAddressSearch}>
-                  Adres Ara
-                </button>
-                <button type="button" onClick={() => setIsRoutePickMode(true)} className={isRoutePickMode ? 'active' : ''}>
-                  Haritadan Sec
-                </button>
-              </div>
-
-              {routeTarget && (
-                <div className="address-card compact-address-card">
-                  <MapPin size={18} />
-                  <div>
-                    <strong>{routeTarget.label}</strong>
-                    <span>{routeTarget.latitude.toFixed(5)}, {routeTarget.longitude.toFixed(5)}</span>
-                  </div>
-                </div>
-              )}
-
-              <button className="primary-action-button" type="button" onClick={handleRoute}>
-                <Navigation size={18} />
-                Yol Tarifi Al
-              </button>
-
               {routeResult && (
-                <>
-                  <section className="route-summary">
-                    <div>
-                      <span>Mesafe</span>
-                      <strong>{formatDistance(routeResult.distanceMeters)}</strong>
-                    </div>
-                    <div>
-                      <span>Tahmini Sure</span>
-                      <strong>{formatDuration(routeResult.durationSeconds)}</strong>
-                    </div>
-                    {routeResult.steps.length > 0 && (
-                      <ol>
-                        {routeResult.steps.map((step, index) => (
-                          <li key={`${step.instruction}-${index}`}>
-                            <span>{step.instruction}</span>
-                            <small>{formatDistance(step.distanceMeters)}</small>
-                          </li>
-                        ))}
-                      </ol>
-                    )}
-                  </section>
-
-                  <button className="primary-action-button secondary-action-button" type="button" onClick={handleSaveRoute}>
-                    <Save size={18} />
-                    Save rota
-                  </button>
-                </>
+                <section className="route-summary">
+                  <div>
+                    <span>Mesafe</span>
+                    <strong>{formatDistance(routeResult.distanceMeters)}</strong>
+                  </div>
+                  <div>
+                    <span>Tahmini Sure</span>
+                    <strong>{formatDuration(routeResult.durationSeconds)}</strong>
+                  </div>
+                  {routeResult.steps.length > 0 && (
+                    <ol>
+                      {routeResult.steps.map((step, index) => (
+                        <li key={`${step.instruction}-${index}`}>
+                          <span>{step.instruction}</span>
+                          <small>{formatDistance(step.distanceMeters)}</small>
+                        </li>
+                      ))}
+                    </ol>
+                  )}
+                </section>
               )}
-
-              {routeNotice && <div className="inline-notice success">{routeNotice}</div>}
             </>
           ) : (
             <>
-              <div className="nearest-source-picker">
-                <button type="button" className={nearestTargetSource === 'map' ? 'active' : ''} onClick={() => handleSelectNearestSource('map')}>
-                  <MapPin size={16} />
-                  Harita
-                </button>
-                <button type="button" className={nearestTargetSource === 'address' ? 'active' : ''} onClick={() => handleSelectNearestSource('address')}>
-                  <Search size={16} />
-                  Adres
-                </button>
-                <button type="button" className={nearestTargetSource === 'facility' ? 'active' : ''} onClick={() => handleSelectNearestSource('facility')}>
-                  <Building2 size={16} />
-                  Tesis
-                </button>
-                <button type="button" className={nearestTargetSource === 'route' ? 'active' : ''} onClick={() => handleSelectNearestSource('route')}>
-                  <Route size={16} />
-                  Rota
-                </button>
-              </div>
-
-              {nearestTargetSource === 'route' && (
-                <div className="saved-route-list">
-                  {savedRoutes.length === 0 ? (
-                    <div className="empty-panel-state compact-empty-state">
-                      <strong>Kayitli rota yok</strong>
-                      <span>Rota bul panelinden rota kaydedin.</span>
-                    </div>
-                  ) : (
-                    savedRoutes.map(savedRoute => (
-                      <button
-                        key={savedRoute.id}
-                        className={selectedSavedRouteId === savedRoute.id ? 'selected' : ''}
-                        type="button"
-                        onClick={() => handleSelectSavedRoute(savedRoute.id)}
-                      >
-                        <Route size={17} />
-                        <span>
-                          <strong>{savedRoute.name}</strong>
-                          <small>{formatDuration(savedRoute.route.durationSeconds)} / {formatDistance(savedRoute.route.distanceMeters)}</small>
-                        </span>
-                      </button>
-                    ))
-                  )}
-                </div>
-              )}
-
-              <label className="field-stack compact-field">
-                <span>Arac Turu</span>
-                <select value={selectedVehicleType} onChange={event => setSelectedVehicleType(event.target.value)}>
-                  <option value="">Tum arac turleri</option>
-                  {availableVehicleTypes.map(vehicleType => (
-                    <option key={vehicleType.code} value={vehicleType.code}>
-                      {vehicleType.label} ({vehicleType.count})
-                    </option>
-                  ))}
-                </select>
-              </label>
-
               <div className="nearest-summary-grid">
             <div>
               <Clock3 size={18} />
