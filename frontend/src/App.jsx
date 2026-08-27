@@ -13,7 +13,7 @@ import {
   Search,
   Wifi
 } from 'lucide-react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet';
 import { Navigate, Route as RouterRoute, Routes, useLocation, useNavigate } from 'react-router-dom';
 import L from 'leaflet';
 import { appConfig } from './config';
@@ -37,6 +37,7 @@ import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
 import { AdminDriverHistoryPage } from './pages/AdminDriverHistoryPage';
 import { AppLayout } from './components/AppLayout';
+import { GoogleMapLayer } from './components/GoogleMapLayer';
 import { useAuth } from './context/AuthContext';
 
 function createVehicleIcon(iconUrl, className = '') {
@@ -248,10 +249,7 @@ function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRou
       scrollWheelZoom
       zoomControl={false}
     >
-      <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <GoogleMapLayer />
       <ZoomControl position="topright" />
       <MapFocus vehicles={vehicles} selectedVehicle={selectedVehicle} />
       {activeTripRoutes

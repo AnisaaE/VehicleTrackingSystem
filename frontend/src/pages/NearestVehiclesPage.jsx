@@ -15,11 +15,12 @@ import {
   Search,
   Warehouse
 } from 'lucide-react';
-import { GeoJSON, MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, Polyline, Popup, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
 import { fetchActiveVehicleTrips, fetchDestinations, fetchFacilities, fetchRoute, geocodeAddress } from '../api';
 import { AppLayout } from '../components/AppLayout';
+import { GoogleMapLayer } from '../components/GoogleMapLayer';
 import { useVehicleLocations } from '../useVehicleLocations';
 
 function createVehicleIcon(iconUrl, className = '') {
@@ -348,7 +349,7 @@ function NearbyMap({
 
   return (
     <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="vehicle-map" scrollWheelZoom zoomControl={false}>
-      <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <GoogleMapLayer />
       <ZoomControl position="topright" />
       <NearbyMapFocus
         facilities={facilities}

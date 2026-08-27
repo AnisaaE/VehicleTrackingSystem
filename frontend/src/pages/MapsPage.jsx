@@ -17,7 +17,7 @@ import {
   Trash2,
   Warehouse
 } from 'lucide-react';
-import { GeoJSON, MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
+import { GeoJSON, MapContainer, Marker, Polyline, Popup, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
 import {
@@ -32,6 +32,7 @@ import {
   geocodeAddress
 } from '../api';
 import { AppLayout } from '../components/AppLayout';
+import { GoogleMapLayer } from '../components/GoogleMapLayer';
 
 const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -735,7 +736,7 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
 
         <section className="map-stage maps-map-stage">
           <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom zoomControl={false}>
-            <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <GoogleMapLayer />
             <ZoomControl position="topright" />
             {canEditMaps && <DrawingTools onGeometryCreated={handleGeometryCreated} />}
             {canEditMaps && <MapCommandToolbar isPickMode={isPickMode} />}

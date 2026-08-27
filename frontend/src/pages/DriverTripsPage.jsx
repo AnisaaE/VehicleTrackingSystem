@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Clock3, Gauge, LocateFixed, MapPin, Navigation, Route, Wifi } from 'lucide-react';
-import { MapContainer, Marker, Polyline, Popup, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { appConfig } from '../config';
 import { completeVehicleTrip, fetchMyVehicleTrips, fetchRoute } from '../api';
 import { AppLayout } from '../components/AppLayout';
+import { GoogleMapLayer } from '../components/GoogleMapLayer';
 import { useVehicleLocations } from '../useVehicleLocations';
 
 const destinationIcon = new L.Icon({
@@ -128,7 +129,7 @@ function DriverRouteMap({ destination, focusKey, route, vehicle }) {
       scrollWheelZoom
       zoomControl={false}
     >
-      <TileLayer attribution="&copy; OpenStreetMap contributors" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+      <GoogleMapLayer />
       <ZoomControl position="topright" />
       <MapFocus destination={destination} focusKey={focusKey} positions={positions} vehicle={vehicle} />
       {positions.length > 0 && <Polyline positions={positions} pathOptions={{ color: '#2563eb', weight: 6 }} />}
