@@ -1798,6 +1798,18 @@ h2 {
   background: #f8fafc;
 }
 
+.facility-editor-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.facility-editor .secondary-editor-button {
+  border-color: #d6dde8;
+  background: #fff;
+  color: #334155;
+}
+
 .detail-section {
   display: grid;
   gap: 8px;

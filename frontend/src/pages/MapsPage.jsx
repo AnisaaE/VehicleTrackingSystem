@@ -15,7 +15,8 @@ import {
   Save,
   Search,
   Trash2,
-  Warehouse
+  Warehouse,
+  X
 } from 'lucide-react';
 import { GeoJSON, MapContainer, Marker, Polyline, Popup, ZoomControl, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
@@ -456,6 +457,15 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
     }
   }, []);
 
+  const handleCancelFacilityEditor = () => {
+    setIsEditorOpen(false);
+    setDraftName('');
+    setDraftCode('');
+    setDraftLocation(null);
+    setDraftBoundary(null);
+    setError(null);
+  };
+
   const handleSaveFacility = async () => {
     if (!draftLocation) {
       setError('Tesis için önce haritada bir nokta çizin.');
@@ -478,6 +488,7 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
       setDraftCode('');
       setDraftLocation(null);
       setDraftBoundary(null);
+      setIsEditorOpen(false);
       setNotice('Tesis kaydedildi.');
       setError(null);
     } catch (nextError) {
@@ -623,15 +634,22 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
           <div className="panel-heading">
             <div>
               <span>Haritalar</span>
-              <h2>Tesisler</h2>
+              <h2>{isEditorOpen ? 'Yeni tesis' : 'Tesisler'}</h2>
             </div>
             {canEditMaps && (
-              <button className="primary-mini-button" type="button" onClick={() => setIsEditorOpen(value => !value)}>
-                + Yeni Tesis
+              <button
+                className={isEditorOpen ? 'icon-button' : 'primary-mini-button'}
+                type="button"
+                onClick={isEditorOpen ? handleCancelFacilityEditor : () => setIsEditorOpen(true)}
+                aria-label={isEditorOpen ? 'Yeni tesis formunu kapat' : 'Yeni tesis ekle'}
+                title={isEditorOpen ? 'Kapat' : 'Yeni tesis ekle'}
+              >
+                {isEditorOpen ? <X size={18} /> : '+ Yeni Tesis'}
               </button>
             )}
           </div>
 
+          {!isEditorOpen && (
           <div className="search-box panel-search">
             <Search size={17} />
             <input
@@ -640,8 +658,9 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
               placeholder="Tesis ara..."
             />
           </div>
+          )}
 
-          {availableFacilityTypes.length > 0 && (
+          {!isEditorOpen && availableFacilityTypes.length > 0 && (
             <div className="type-filter compact">
               <div className="type-filter-heading">
                 <span>Tesis türü</span>
@@ -676,6 +695,7 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
             </div>
           )}
 
+          {!isEditorOpen && (
           <div className="facility-list">
             {visibleFacilities.length === 0 ? (
               <div className="empty-panel-state">
@@ -707,6 +727,7 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
               })
             )}
           </div>
+          )}
 
           {canEditMaps && isEditorOpen && (
             <section className="facility-editor">
@@ -726,10 +747,16 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
                 <span>{draftLocation ? 'Nokta hazır' : 'Nokta bekleniyor'}</span>
                 <span>{draftBoundary ? 'Poligon hazır' : 'Poligon opsiyonel'}</span>
               </div>
-              <button type="button" onClick={handleSaveFacility}>
-                <Save size={18} />
-                Kaydet
-              </button>
+              <div className="facility-editor-actions">
+                <button type="button" onClick={handleSaveFacility}>
+                  <Save size={18} />
+                  Kaydet
+                </button>
+                <button className="secondary-editor-button" type="button" onClick={handleCancelFacilityEditor}>
+                  <X size={18} />
+                  Iptal
+                </button>
+              </div>
             </section>
           )}
         </aside>
