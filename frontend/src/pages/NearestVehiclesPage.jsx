@@ -156,10 +156,10 @@ function formatDuration(value) {
 
 function formatConnectionStatus(status) {
   const labels = {
-    connecting: 'Baglaniyor',
-    connected: 'Bagli',
-    reconnecting: 'Yeniden baglaniyor',
-    disconnected: 'Baglanti yok'
+    connecting: 'Bağlanıyor',
+    connected: 'Bağlı',
+    reconnecting: 'Yeniden bağlanıyor',
+    disconnected: 'Bağlantı yok'
   };
 
   return labels[status] ?? status;
@@ -410,7 +410,7 @@ function NearbyMap({
             >
               <Popup>
                 <strong>{routeItem.trip.vehiclePlate}</strong>
-                <span>{routeItem.trip.destinationName ?? 'Gorev hedefi'}</span>
+                <span>{routeItem.trip.destinationName ?? 'Görev hedefi'}</span>
                 <span>{formatDuration(routeItem.route.durationSeconds)}</span>
               </Popup>
             </Polyline>
@@ -974,7 +974,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
     }
 
     if (!selectedTarget && !selectedSavedRoute) {
-      setRouteError('En yakin arac icin harita, adres, tesis veya rota secin.');
+      setRouteError('En yakin araç icin harita, adres, tesis veya rota seçin.');
       return;
     }
 
@@ -993,7 +993,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
 
   const handleRoute = async () => {
     if (!selectedFacility || !routeTarget) {
-      setRouteError('Rota icin cikis noktasi ve hedef secin.');
+      setRouteError('Rota için çıkış noktasi ve hedef seçin.');
       return;
     }
 
@@ -1021,7 +1021,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
     const originPosition = pointToLatLng(selectedFacility.location);
 
     if (!originPosition) {
-      setRouteError('Cikis tesisinin konum bilgisi yok.');
+      setRouteError('Çıkış tesisinin konum bilgisi yok.');
       return;
     }
 
@@ -1098,7 +1098,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
           <div className="nearest-left-controls">
             <div className="segmented-actions nearest-tool-switch">
               <button type="button" className={activeTool === 'nearest' ? 'active' : ''} onClick={() => setActiveTool('nearest')}>
-                En yakin arac bul
+                En yakın araç bul
               </button>
               <button type="button" className={activeTool === 'route' ? 'active' : ''} onClick={() => setActiveTool('route')}>
                 Rota bul
@@ -1108,9 +1108,9 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
             {activeTool === 'route' ? (
               <>
                 <label className="field-stack compact-field">
-                  <span>Cikis Noktasi</span>
+                  <span>Çıkış Noktası</span>
                   <select value={selectedFacility?.id ?? ''} onChange={event => setRouteOriginFacilityId(event.target.value)}>
-                    {visibleFacilities.length === 0 && <option value="">Gorunen tesis yok</option>}
+                    {visibleFacilities.length === 0 && <option value="">Görünen tesis yok</option>}
                     {visibleFacilities.map(facility => (
                       <option key={facility.id} value={facility.id}>{facility.name}</option>
                     ))}
@@ -1171,7 +1171,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
                     Adres Ara
                   </button>
                   <button type="button" onClick={() => setIsRoutePickMode(true)} className={isRoutePickMode ? 'active' : ''}>
-                    Haritadan Sec
+                    Haritadan Seç
                   </button>
                 </div>
 
@@ -1301,9 +1301,9 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
                 )}
 
                 <label className="field-stack compact-field">
-                  <span>Arac Turu</span>
+                  <span>Araç Türü</span>
                   <select value={selectedVehicleType} onChange={event => setSelectedVehicleType(event.target.value)}>
-                    <option value="">Tum arac turleri</option>
+                    <option value="">Tüm araç türleri</option>
                     {availableVehicleTypes.map(vehicleType => (
                       <option key={vehicleType.code} value={vehicleType.code}>
                         {vehicleType.label} ({vehicleType.count})
@@ -1314,7 +1314,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
 
                 <button className="primary-action-button" type="button" onClick={handleNearestSearch}>
                   <Navigation size={18} />
-                  En Yakin Araclari Bul
+                  En Yakın Araçları Bul
                 </button>
               </>
             )}
@@ -1334,8 +1334,8 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               <div className="facility-list">
                 {visibleFacilities.length === 0 ? (
                   <div className="empty-panel-state">
-                    <strong>Konum bulunamadi</strong>
-                    <span>Arama metniyle eslesen tesis yok.</span>
+                    <strong>Konum bulunamadı</strong>
+                    <span>Arama metniyle eşleşen tesis yok.</span>
                   </div>
                 ) : (
                   visibleFacilities.map(facility => {
@@ -1392,7 +1392,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
 
           {vehicleError && (
             <div className="system-toast error">
-              <strong>Arac verisi</strong>
+              <strong>Araç verisi</strong>
               <span>{vehicleError}</span>
             </div>
           )}
@@ -1408,8 +1408,8 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
         <aside className="workspace-panel nearest-results-panel">
           <div className="details-heading">
             <div>
-              <span>{activeTool === 'route' ? 'Yol Tarifi' : 'En Yakin Araclar'}</span>
-              <h2>{activeTool === 'route' ? 'Rota' : selectedTarget?.label ?? 'Konum secin'}</h2>
+              <span>{activeTool === 'route' ? 'Yol Tarifi' : 'En Yakın Araçlar'}</span>
+              <h2>{activeTool === 'route' ? 'Rota' : selectedTarget?.label ?? 'Konum seçin'}</h2>
             </div>
             {activeTool === 'route' ? <Route size={22} /> : <Navigation size={22} />}
           </div>
@@ -1423,7 +1423,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
                     <strong>{formatDistance(routeResult.distanceMeters)}</strong>
                   </div>
                   <div>
-                    <span>Tahmini Sure</span>
+                    <span>Tahmini Süre</span>
                     <strong>{formatDuration(routeResult.durationSeconds)}</strong>
                   </div>
                   {routeResult.steps.length > 0 && (
@@ -1444,12 +1444,12 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               <div className="nearest-summary-grid">
             <div>
               <Clock3 size={18} />
-              <span>En yakin sure</span>
+              <span>En yakın süre</span>
               <strong>{isRouteLoading ? 'Hesaplaniyor' : formatDuration(nearestRoutes[0]?.route.durationSeconds)}</strong>
             </div>
             <div>
               <CarFront size={18} />
-              <span>Uygun arac</span>
+              <span>Uygun araç</span>
               <strong>{filteredVehicles.length}</strong>
             </div>
               </div>
@@ -1457,13 +1457,13 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               {isRouteRefreshing && (
                 <div className="nearest-refresh-note">
                   <Clock3 size={15} />
-                  <span>Sureler arka planda guncelleniyor.</span>
+                  <span>Süreler arka planda güncelleniyor.</span>
                 </div>
               )}
 
               {bestByType.length > 0 && (
                 <section className="nearest-type-leaders">
-                  <h3>Turune gore en yakin</h3>
+                  <h3>Türune göre en yakın</h3>
                   {bestByType.map(routeResult => (
                     <button
                       key={getVehicleKey(routeResult.vehicle)}
@@ -1483,16 +1483,16 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               <div className="nearest-list">
                 {isRouteLoading ? (
                   <div className="empty-panel-state">
-                    <strong>Rotalar hesaplaniyor</strong>
-                    <span>Secilen konuma gore arac sureleri yenileniyor.</span>
+                    <strong>Rotalar hesaplanıyor</strong>
+                    <span>Seçilen konuma göre araç süreleri yenileniyor.</span>
                   </div>
                 ) : nearestRoutes.length === 0 ? (
                   <div className="empty-panel-state">
-                    <strong>{selectedTarget || selectedSavedRoute ? 'Sonuc yok' : 'Konum secin'}</strong>
+                    <strong>{selectedTarget || selectedSavedRoute ? 'Sonuç yok' : 'Konum seçin'}</strong>
                     <span>
                       {selectedTarget || selectedSavedRoute
                         ? `${selectedProviderName} icin bu filtrede rota bulunamadi.`
-                        : 'Harita, adres, tesis veya kayitli rota secin.'}
+                        : 'Harita, adres, tesis veya kayıtlı rota seçin.'}
                     </span>
                   </div>
                 ) : (
@@ -1521,7 +1521,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
                 <section className="nearest-selected-card">
                   <CarFront size={22} />
                   <div>
-                    <span>Secili arac</span>
+                    <span>Seçili araç</span>
                     <strong>{selectedVehicle.plate}</strong>
                     <small>{selectedVehicle.vehicleName}</small>
                   </div>

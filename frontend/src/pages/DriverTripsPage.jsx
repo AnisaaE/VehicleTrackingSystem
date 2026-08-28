@@ -271,7 +271,7 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
 
     try {
       await completeVehicleTrip(activeTrip.id);
-      setNotice(`${activeTrip.destinationName ?? 'Gorev'} tamamlandi.`);
+      setNotice(`${activeTrip.destinationName ?? 'Görev'} tamamlandı.`);
       await loadTrips();
     } catch (nextError) {
       setError(nextError.message);
@@ -321,7 +321,7 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
 
           {notice && (
             <div className="system-toast success">
-              <strong>Gorev</strong>
+              <strong>Görev</strong>
               <span>{notice}</span>
             </div>
           )}
@@ -330,18 +330,18 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
         <aside className="workspace-panel route-panel driver-navigation-panel">
           <div className="details-heading">
             <div>
-              <span>Canli yol tarifi</span>
-              <h2>{activeTrip?.destinationName ?? 'Aktif gorev yok'}</h2>
+              <span>Canlı yol tarifi</span>
+              <h2>{activeTrip?.destinationName ?? 'Aktif görev yok'}</h2>
             </div>
             <LocateFixed size={22} />
           </div>
 
           {isLoading ? (
-            <div className="empty-panel-state">Gorev kontrol ediliyor.</div>
+            <div className="empty-panel-state">Görev kontrol ediliyor.</div>
           ) : !activeTrip ? (
             <div className="empty-panel-state">
               <strong>Aktif rota yok</strong>
-              <span>Yeni bir gorev atandiginda rota burada otomatik gorunecek.</span>
+              <span>Yeni bir görev atandığında rota burada otomatik görunecek.</span>
             </div>
           ) : (
             <>
@@ -364,7 +364,7 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
               <div className="route-live-summary">
                 <div>
                   <Clock3 size={18} />
-                  <span>Kalan sure</span>
+                  <span>Kalan süre</span>
                   <strong>{formatDuration(displayedRoute?.durationSeconds)}</strong>
                 </div>
                 <div>
@@ -374,19 +374,19 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
                 </div>
                 <div>
                   <Gauge size={18} />
-                  <span>Hiz</span>
+                  <span>Hız</span>
                   <strong>{selectedVehicle ? `${selectedVehicle.speed} km/h` : '-'}</strong>
                 </div>
                 <div>
                   <Wifi size={18} />
-                  <span>Canli konum</span>
-                  <strong>{selectedVehicle ? 'Aliniyor' : 'Bekleniyor'}</strong>
+                  <span>Canlı konum</span>
+                  <strong>{selectedVehicle ? 'Alınıyor' : 'Bekleniyor'}</strong>
                 </div>
               </div>
 
               <section className="driver-next-step">
-                <span>Siradaki yon</span>
-                <strong>{nextStep?.instruction ?? (selectedVehicle ? 'Rota guncelleniyor.' : 'Arac konumu bekleniyor.')}</strong>
+                <span>Sıradaki yön</span>
+                <strong>{nextStep?.instruction ?? (selectedVehicle ? 'Rota guncelleniyor.' : 'Araç konumu bekleniyor.')}</strong>
                 {nextStep && <small>{formatDistance(nextStep.distanceMeters)} sonra</small>}
               </section>
 
@@ -405,7 +405,7 @@ export function DriverTripsPage({ currentUser, municipalityName, onLogout }) {
 
               <button className="primary-action-button" type="button" onClick={handleComplete}>
                 <CheckCircle2 size={18} />
-                Gorevi tamamla
+                Görevi tamamla
               </button>
             </>
           )}
@@ -458,7 +458,7 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
       headerIcon={Route}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      title="Gecmis Rotalar"
+      title="Geçmiş Rotalar"
       user={currentUser}
     >
       <section className="driver-dashboard driver-history-list-dashboard">
@@ -466,11 +466,11 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
 
         <div className="driver-trip-list">
           {isLoading ? (
-            <div className="empty-panel-state">Gecmis rotalar yukleniyor.</div>
+            <div className="empty-panel-state">Geçmiş rotalar yükleniyor.</div>
           ) : trips.length === 0 ? (
             <div className="empty-panel-state">
-              <strong>Gecmis rota yok</strong>
-              <span>Tamamlanan veya iptal edilen rota henuz bulunmuyor.</span>
+              <strong>Geçmiş rota yok</strong>
+              <span>Tamamlanan veya iptal edilen rota henüz bulunmuyor.</span>
             </div>
           ) : trips.map(trip => (
             <article key={trip.id} className="driver-trip-card">
@@ -485,12 +485,12 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
               <div className="driver-trip-grid">
                 <div>
                   <MapPin size={17} />
-                  <span>Cikis</span>
+                  <span>Çıkış</span>
                   <strong>{trip.originFacilityName ?? 'Mevcut konum'}</strong>
                 </div>
                 <div>
                   <Clock3 size={17} />
-                  <span>Sure</span>
+                  <span>Süre</span>
                   <strong>{formatDuration(trip.actualDurationSeconds ?? trip.estimatedDurationSeconds)}</strong>
                 </div>
                 <div>
@@ -505,7 +505,7 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
                 </div>
                 <div>
                   <CheckCircle2 size={17} />
-                  <span>Gorevlendiren</span>
+                  <span>Görevlendiren</span>
                   <strong>{trip.assignedByEmployeeName ?? '-'}</strong>
                 </div>
                 <div>

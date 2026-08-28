@@ -73,7 +73,7 @@ export function AdminDriverHistoryPage({ currentUser, municipalityName, onLogout
       headerIcon={Route}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      title="Sofor gecmisi"
+      title="Sürücü geçmişi"
       user={currentUser}
     >
       <section className="driver-history-dashboard">
@@ -83,29 +83,29 @@ export function AdminDriverHistoryPage({ currentUser, municipalityName, onLogout
             Geri
           </button>
           <div>
-            <span>View drivers history</span>
+            <span>Sürücü geçmişini görüntüle:</span>
             <h2>{driverName}</h2>
           </div>
         </div>
 
         <div className="driver-summary">
-          <div><CheckCircle2 size={20} /><span>Tamamlanan routes</span><strong>{completedTrips.length}</strong></div>
-          <div><Route size={20} /><span>Toplam gorev</span><strong>{trips.length}</strong></div>
-          <div><Clock3 size={20} /><span>Toplam calisma</span><strong>{formatDuration(totalActualSeconds)}</strong></div>
+          <div><CheckCircle2 size={20} /><span>Tamamlanan görevler</span><strong>{completedTrips.length}</strong></div>
+          <div><Route size={20} /><span>Toplam görev</span><strong>{trips.length}</strong></div>
+          <div><Clock3 size={20} /><span>Toplam çalışma</span><strong>{formatDuration(totalActualSeconds)}</strong></div>
         </div>
 
         {error && <div className="inline-notice error">{error}</div>}
 
         <div className="driver-trip-list">
           {isLoading ? (
-            <div className="empty-panel-state">Sofor gecmisi yukleniyor.</div>
+            <div className="empty-panel-state">Sürücü geçmişi yükleniyor.</div>
           ) : trips.length === 0 ? (
-            <div className="empty-panel-state">Bu sofor icin atanmis gorev yok.</div>
+            <div className="empty-panel-state">Bu sürücü için atanmış görev yok.</div>
           ) : trips.map(trip => (
             <article key={trip.id} className="driver-trip-card">
               <div className="driver-trip-heading">
                 <div>
-                  <span>{trip.vehiclePlate} · {trip.vehicleTypeName ?? trip.vehicleTypeCode ?? 'Arac'}</span>
+                  <span>{trip.vehiclePlate} · {trip.vehicleTypeName ?? trip.vehicleTypeCode ?? 'Araç'}</span>
                   <h2>{trip.originFacilityName ?? 'Mevcut konum'} → {destinationLabel(trip)}</h2>
                 </div>
                 <em>{trip.status}</em>
@@ -114,11 +114,11 @@ export function AdminDriverHistoryPage({ currentUser, municipalityName, onLogout
               <div className="driver-trip-grid">
                 <div><MapPin size={17} /><span>Nereden</span><strong>{trip.originFacilityName ?? 'Mevcut konum'}</strong></div>
                 <div><MapPin size={17} /><span>Nereye</span><strong>{destinationLabel(trip)}</strong></div>
-                <div><Clock3 size={17} /><span>Tahmin sure</span><strong>{formatDuration(trip.estimatedDurationSeconds)}</strong></div>
-                <div><Clock3 size={17} /><span>Gercek sure</span><strong>{formatDuration(trip.actualDurationSeconds)}</strong></div>
+                <div><Clock3 size={17} /><span>Tahmin süresi</span><strong>{formatDuration(trip.estimatedDurationSeconds)}</strong></div>
+                <div><Clock3 size={17} /><span>Gerçek süresi</span><strong>{formatDuration(trip.actualDurationSeconds)}</strong></div>
                 <div><Route size={17} /><span>Tahmin mesafe</span><strong>{formatDistance(trip.estimatedDistanceMeters)}</strong></div>
                 <div><CheckCircle2 size={17} /><span>Atanma</span><strong>{formatDateTime(trip.assignedAt)}</strong></div>
-                <div><CheckCircle2 size={17} /><span>Gorevlendiren</span><strong>{trip.assignedByEmployeeName ?? '-'}</strong></div>
+                <div><CheckCircle2 size={17} /><span>Görevlendiren</span><strong>{trip.assignedByEmployeeName ?? '-'}</strong></div>
                 <div><CheckCircle2 size={17} /><span>Tamamlanma</span><strong>{formatDateTime(trip.completedAt)}</strong></div>
                 <div><CheckCircle2 size={17} /><span>Tamamlayan</span><strong>{trip.completedByEmployeeName ?? '-'}</strong></div>
                 <div><MapPin size={17} /><span>Tamamlanan konum</span><strong>{formatCoordinates(trip.completionLatitude, trip.completionLongitude)}</strong></div>

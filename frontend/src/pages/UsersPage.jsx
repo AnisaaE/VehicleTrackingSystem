@@ -6,9 +6,9 @@ import { AppLayout } from '../components/AppLayout';
 
 const roles = ['ADMIN', 'DISPATCHER', 'DRIVER', 'VIEWER'];
 const tabs = [
-  { id: 'users', label: 'List of user', icon: Users },
-  { id: 'routes', label: 'List of gorevler', icon: ListChecks },
-  { id: 'stats', label: 'Statistikler', icon: BarChart3 }
+  { id: 'users', label: 'Kullanıcı listesi', icon: Users },
+  { id: 'routes', label: 'Görev listesi', icon: ListChecks },
+  { id: 'stats', label: 'İstatistikler', icon: BarChart3 }
 ];
 const initialForm = { username: '', password: '', fullName: '', phone: '', email: '', role: 'DRIVER' };
 
@@ -151,7 +151,7 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
       setUsers(current => [...current, created].sort((first, second) => first.fullName.localeCompare(second.fullName, 'tr')));
       setForm(initialForm);
       setIsCreateOpen(false);
-      setNotice('Kullanici olusturuldu.');
+      setNotice('Kullanıcı oluşturuldu.');
     } catch (nextError) {
       setError(nextError.message);
     }
@@ -192,8 +192,8 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
         <aside className="workspace-panel users-nav-panel">
           <div className="panel-heading">
             <div>
-              <span>Kullanici paneli</span>
-              <h2>Yonetim</h2>
+              <span>Kullanıcı paneli</span>
+              <h2>Yönetim</h2>
             </div>
             <Shield size={22} />
           </div>
@@ -213,14 +213,14 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
 
           <button className="primary-action-button users-create-button" type="button" onClick={() => setIsCreateOpen(true)}>
             <UserPlus size={18} />
-            Yeni kullanici
+            Yeni kullanıcı
           </button>
         </aside>
 
         <section className="workspace-panel user-list-panel">
           <div className="panel-heading">
             <div>
-              <span>{activeTab === 'users' ? 'Yetkilendirme' : activeTab === 'routes' ? 'Gorev gecmisi' : 'Ozet'}</span>
+              <span>{activeTab === 'users' ? 'Yetkilendirme' : activeTab === 'routes' ? 'Görev geçmişi' : 'Ozet'}</span>
               <h2>{tabs.find(tab => tab.id === activeTab)?.label}</h2>
             </div>
             <button className="icon-button" type="button" onClick={() => activeTab === 'users' ? loadUsers() : loadTrips()} title="Yenile" aria-label="Yenile">
@@ -260,7 +260,7 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
                   {user.role === 'DRIVER' && (
                     <button type="button" className="history-button" onClick={() => navigate(`/users/drivers/${user.employeeId}/history`, { state: { driverName: user.fullName } })}>
                       <History size={16} />
-                      View drivers history
+                      Sürücü geçmişini görüntüle
                     </button>
                   )}
                 </article>
@@ -271,9 +271,9 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
           {activeTab === 'routes' && (
             <div className="assigned-routes-list">
               {isLoadingTrips ? (
-                <div className="empty-panel-state">Gorevler yukleniyor.</div>
+                <div className="empty-panel-state">Görevler yükleniyor.</div>
               ) : tripsByVehicleType.length === 0 ? (
-                <div className="empty-panel-state">Atanmis rota yok.</div>
+                <div className="empty-panel-state">Atanmış rota yok.</div>
               ) : tripsByVehicleType.map(group => (
                 <section key={group.label} className="route-category-section">
                   <div className="route-category-heading">
@@ -286,7 +286,7 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
                       <div>
                         <strong>{trip.originFacilityName ?? 'Mevcut konum'} → {tripDestinationLabel(trip)}</strong>
                         <small>{trip.vehiclePlate} · {trip.driverName ?? 'Sofor atanmadi'}</small>
-                        <small>Gorevlendiren: {trip.assignedByEmployeeName ?? '-'}</small>
+                        <small>Görevlendiren: {trip.assignedByEmployeeName ?? '-'}</small>
                         <small>Tamamlayan: {trip.completedByEmployeeName ?? '-'} · {completionLocationLabel(trip)}</small>
                       </div>
                       <span>{trip.status}</span>
@@ -301,10 +301,10 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
           {activeTab === 'stats' && (
             <div className="admin-stats-view">
               <div className="admin-stat-grid">
-                <div><Route size={20} /><span>Toplam gorev</span><strong>{trips.length}</strong></div>
+                <div><Route size={20} /><span>Toplam görev</span><strong>{trips.length}</strong></div>
                 <div><ListChecks size={20} /><span>Tamamlanan</span><strong>{stats.completedTrips.length}</strong></div>
                 <div><Clock3 size={20} /><span>Aktif</span><strong>{stats.activeTrips.length}</strong></div>
-                <div><Clock3 size={20} /><span>Toplam calisma</span><strong>{formatDuration(stats.totalActualSeconds)}</strong></div>
+                <div><Clock3 size={20} /><span>Toplam çalışma</span><strong>{formatDuration(stats.totalActualSeconds)}</strong></div>
               </div>
 
               <section className="driver-stat-list">
@@ -330,7 +330,7 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
             <div className="panel-heading">
               <div>
                 <span>Admin</span>
-                <h2 id="create-user-title">Yeni Kullanici</h2>
+                <h2 id="create-user-title">Yeni Kullanıcı</h2>
               </div>
               <button className="icon-button" type="button" onClick={() => setIsCreateOpen(false)} aria-label="Kapat" title="Kapat">
                 <X size={17} />
@@ -339,8 +339,8 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
 
             <form className="user-form" onSubmit={handleCreateUser}>
               <label className="field-stack"><span>Ad Soyad</span><input value={form.fullName} onChange={event => setForm(current => ({ ...current, fullName: event.target.value }))} /></label>
-              <label className="field-stack"><span>Kullanici adi</span><input value={form.username} onChange={event => setForm(current => ({ ...current, username: event.target.value }))} /></label>
-              <label className="field-stack"><span>Sifre</span><input value={form.password} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} type="password" /></label>
+              <label className="field-stack"><span>Kullanıcı adı</span><input value={form.username} onChange={event => setForm(current => ({ ...current, username: event.target.value }))} /></label>
+              <label className="field-stack"><span>Şifre</span><input value={form.password} onChange={event => setForm(current => ({ ...current, password: event.target.value }))} type="password" /></label>
               <label className="field-stack"><span>Telefon</span><input value={form.phone} onChange={event => setForm(current => ({ ...current, phone: event.target.value }))} /></label>
               <label className="field-stack"><span>Email</span><input value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} /></label>
               <label className="field-stack">
@@ -361,15 +361,15 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
             <div className="panel-heading">
               <div>
                 <span>Yetkilendirme</span>
-                <h2 id="role-confirm-title">Rol degissin mi?</h2>
+                <h2 id="role-confirm-title">Rol değiştirilsin mi?</h2>
               </div>
               <Shield size={22} />
             </div>
             <p>
-              {pendingRoleChange.user.fullName} kullanicisinin yetkilendirmesini {pendingRoleChange.user.role} rolunden {pendingRoleChange.role} rolune degistirmek istediginize emin misiniz?
+              {pendingRoleChange.user.fullName} kullanıcısının yetkilendirmesini {pendingRoleChange.user.role} rolünden {pendingRoleChange.role} rolüne değiştirmek istediginize emin misiniz?
             </p>
             <div className="modal-actions">
-              <button type="button" onClick={() => setPendingRoleChange(null)}>Vazgec</button>
+              <button type="button" onClick={() => setPendingRoleChange(null)}>Vazgeç</button>
               <button type="button" onClick={confirmRoleChange}>Onayla</button>
             </div>
           </section>

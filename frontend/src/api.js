@@ -82,7 +82,7 @@ export async function fetchUsers() {
   const response = await apiFetch('/api/users');
 
   if (!response.ok) {
-    throw await readError(response, 'Kullanici verileri yuklenemedi.');
+    throw await readError(response, 'Kullanıcı verileri yüklenemedi.');
   }
 
   return response.json();
@@ -98,7 +98,7 @@ export async function createUser(user) {
   });
 
   if (!response.ok) {
-    throw await readError(response, 'Kullanici olusturulamadi.');
+    throw await readError(response, 'Kullanıcı oluşturulamadı.');
   }
 
   return response.json();
@@ -130,7 +130,7 @@ export async function updateUserStatus(id, isActive) {
   });
 
   if (!response.ok) {
-    throw await readError(response, 'Kullanici durumu guncellenemedi.');
+    throw await readError(response, 'Kullanıcı durumu güncellenemedi.');
   }
 
   return response.json();
@@ -140,7 +140,7 @@ export async function fetchProviders() {
   const response = await apiFetch('/api/providers');
 
   if (!response.ok) {
-    throw await readError(response, 'Saglayici verileri yuklenemedi.');
+    throw await readError(response, 'Sağlayıcı verileri yüklenemedi.');
   }
 
   return response.json();
@@ -150,7 +150,7 @@ export async function fetchAppConfig() {
   const response = await apiFetch('/api/app-config');
 
   if (!response.ok) {
-    throw await readError(response, 'Uygulama ayarlari yuklenemedi.');
+    throw await readError(response, 'Uygulama ayarları yüklenemedi.');
   }
 
   return response.json();
@@ -161,7 +161,7 @@ export async function fetchVehicles(providerCode) {
   const response = await apiFetch(`/api/vehicles${query}`);
 
   if (!response.ok) {
-    throw await readError(response, 'Arac konum verileri yuklenemedi.');
+    throw await readError(response, 'Araç konum verileri yüklenemedi.');
   }
 
   return response.json();
@@ -171,7 +171,7 @@ export async function fetchEmployees() {
   const response = await apiFetch('/api/employees');
 
   if (!response.ok) {
-    throw await readError(response, 'Personel verileri yuklenemedi.');
+    throw await readError(response, 'Personel verileri yüklenemedi.');
   }
 
   return response.json();
@@ -189,7 +189,7 @@ export async function fetchActiveVehicleTrips({ providerCode, plate } = {}) {
   const response = await apiFetch(`/api/vehicle-trips/active${query}`);
 
   if (!response.ok) {
-    throw await readError(response, 'Aktif gorev verileri yuklenemedi.');
+    throw await readError(response, 'Aktif görev verileri yüklenemedi.');
   }
 
   return response.json();
@@ -199,7 +199,7 @@ export async function fetchVehicleTrips() {
   const response = await apiFetch('/api/vehicle-trips');
 
   if (!response.ok) {
-    throw await readError(response, 'Gorev gecmisi yuklenemedi.');
+    throw await readError(response, 'Görev geçmişi yüklenemedi.');
   }
 
   return response.json();
@@ -209,7 +209,7 @@ export async function fetchDriverVehicleTrips(driverId) {
   const response = await apiFetch(`/api/vehicle-trips/driver/${encodeURIComponent(driverId)}`);
 
   if (!response.ok) {
-    throw await readError(response, 'Sofor gecmisi yuklenemedi.');
+    throw await readError(response, 'Sürücü geçmisi yüklenemedi.');
   }
 
   return response.json();
@@ -219,7 +219,7 @@ export async function fetchMyVehicleTrips() {
   const response = await apiFetch('/api/vehicle-trips/my');
 
   if (!response.ok) {
-    throw await readError(response, 'Gorevler yuklenemedi.');
+    throw await readError(response, 'Görevler yüklenemedi.');
   }
 
   return response.json();
@@ -235,7 +235,7 @@ export async function createVehicleTrip(trip) {
   });
 
   if (!response.ok) {
-    throw await readError(response, 'Gorev olusturulamadi.');
+    throw await readError(response, 'Görev oluşturulamadı.');
   }
 
   return response.json();
@@ -247,7 +247,7 @@ export async function completeVehicleTrip(id) {
   });
 
   if (!response.ok) {
-    throw await readError(response, 'Gorev tamamlanamadi.');
+    throw await readError(response, 'Görev tamamlanamadı.');
   }
 
   return response.json();
@@ -259,7 +259,7 @@ export async function cancelVehicleTrip(id) {
   });
 
   if (!response.ok) {
-    throw await readError(response, 'Gorev iptal edilemedi.');
+    throw await readError(response, 'Görev iptal edilemedi.');
   }
 
   return response.json();
@@ -269,7 +269,7 @@ export async function fetchFacilities() {
   const response = await apiFetch('/api/facilities');
 
   if (!response.ok) {
-    throw await readError(response, 'Tesis verileri yuklenemedi.');
+    throw await readError(response, 'Tesis verileri yüklenemedi.');
   }
 
   return response.json();
@@ -305,7 +305,7 @@ export async function fetchDestinations() {
   const response = await apiFetch('/api/destinations');
 
   if (!response.ok) {
-    throw await readError(response, 'Hedef verileri yuklenemedi.');
+    throw await readError(response, 'Hedef verileri yüklenemedi.');
   }
 
   return response.json();
@@ -341,7 +341,7 @@ export async function geocodeAddress(query) {
   const response = await apiFetch(`/api/geocode?q=${encodeURIComponent(query)}`);
 
   if (!response.ok) {
-    throw await readError(response, 'Adres arama tamamlanamadi.');
+    throw await readError(response, 'Adres arama tamamlanamadı.');
   }
 
   return response.json();

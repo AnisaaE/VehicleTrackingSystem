@@ -437,7 +437,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       return {
         latitude: activeTrip.destinationLatitude,
         longitude: activeTrip.destinationLongitude,
-        label: activeTrip.destinationName ?? 'Aktif gorev hedefi'
+        label: activeTrip.destinationName ?? 'Aktif görev hedefi'
       };
     }
 
@@ -742,12 +742,12 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
     }
 
     if (!selectedDestinationId && !manualDestinationTarget) {
-      setRouteError('Gorev icin once hedef secin.');
+      setRouteError('Görev için önce hedef seçin.');
       return;
     }
 
     if (!selectedDriverId) {
-      setRouteError('Gorev icin once sofor secin.');
+      setRouteError('Görev için önce şoför seçin.');
       return;
     }
 
@@ -768,7 +768,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
         trip,
         ...currentTrips.filter(currentTrip => currentTrip.id !== trip.id)
       ]);
-      setTripNotice('Gorev araca atandi.');
+      setTripNotice('Görev araca atandı.');
       setRouteError(null);
     } catch (nextError) {
       setRouteError(nextError.message);
@@ -788,7 +788,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       setRemainingRoute(null);
       setTravelledRoute(null);
       setDisplayedRemainingDurationSeconds(null);
-      setTripNotice(`${trip.vehiclePlate} gorevi tamamlandi.`);
+      setTripNotice(`${trip.vehiclePlate} görevi tamamlandı.`);
       setRouteError(null);
     } catch (nextError) {
       setRouteError(nextError.message);
@@ -808,7 +808,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
       setRemainingRoute(null);
       setTravelledRoute(null);
       setDisplayedRemainingDurationSeconds(null);
-      setTripNotice(`${trip.vehiclePlate} gorevi iptal edildi.`);
+      setTripNotice(`${trip.vehiclePlate} görevi iptal edildi.`);
       setRouteError(null);
     } catch (nextError) {
       setRouteError(nextError.message);
@@ -832,7 +832,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
           <div className="panel-heading">
             <div>
               <span>{municipalityName}</span>
-              <h2>Araclar</h2>
+              <h2>Araçlar</h2>
             </div>
             <strong>{filteredVehicles.length}</strong>
           </div>
@@ -844,10 +844,10 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
               onChange={event => setSelectedProviderCode(event.target.value)}
             >
               {providers.length === 0 ? (
-                <option value="">Tumu</option>
+                <option value="">Tümü</option>
               ) : (
                 <>
-                  <option value="">Tumu</option>
+                  <option value="">Tümü</option>
                   {providers
                     .filter(provider => provider.isActive)
                     .map(provider => (
@@ -881,7 +881,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
           {availableVehicleTypes.length > 0 && (
             <div className="type-filter">
               <div className="type-filter-heading">
-                <span>Arac turu</span>
+                <span>Araç türü</span>
                 <button
                   type="button"
                   onClick={() => setHiddenVehicleTypes([])}
@@ -914,7 +914,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
 
           <div className="panel-subheading">
             <span>{selectedProviderName}</span>
-            <strong>{filteredVehicles.length} arac</strong>
+            <strong>{filteredVehicles.length} araç</strong>
           </div>
 
           <div className="vehicle-list">
@@ -924,7 +924,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                 <span>
                   {vehicles.length === 0
                     ? 'Bu sağlayıcı için kullanılabilir araç konumu yok.'
-                    : 'Secili filtrelere uygun arac yok.'}
+                    : 'Seçili filtrelere uygun araç yok.'}
                 </span>
               </div>
             ) : (
@@ -976,7 +976,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
           )}
           {tripNotice && (
             <div className="system-toast success">
-              <strong>Gorev</strong>
+              <strong>Görev</strong>
               <span>{tripNotice}</span>
             </div>
           )}
@@ -1025,7 +1025,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
               {activeTrip && (
                 <div className="active-trip-card">
                   <div>
-                    <span>Aktif Gorev</span>
+                    <span>Aktif Görev</span>
                     <strong>{activeTrip.destinationName ?? destinationTarget?.label ?? 'Hedef'}</strong>
                   </div>
                   <em>{activeTrip.status}</em>
@@ -1038,7 +1038,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
               {!activeTrip && (
                 <div className="no-active-trip-note">
                   <Route size={16} />
-                  <span>Bu arac icin su anda atanmis gorev yok.</span>
+                  <span>Bu araç için su anda atanmış görev yok.</span>
                 </div>
               )}
 
@@ -1068,7 +1068,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                   {!activeTrip && !selectedDeparture && !originFacilityId && (
                     <div className="route-origin-note">
                       <MapPin size={16} />
-                      <span>Rota aracin mevcut konumundan baslayacak.</span>
+                      <span>Rota aracın mevcut konumundan başlayacak.</span>
                     </div>
                   )}
 
@@ -1162,7 +1162,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                       onChange={event => setSelectedDriverId(event.target.value)}
                       disabled={Boolean(activeTrip)}
                     >
-                      <option value="">Sofor sec</option>
+                      <option value="">Şoför seç</option>
                       {employees
                         .filter(employee => employee.isActive && employee.role === 'DRIVER')
                         .map(employee => (
@@ -1177,7 +1177,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
                 <div className="route-live-summary">
                   <div>
                     <Clock3 size={18} />
-                    <span>Kalan Sure</span>
+                    <span>Kalan Süre</span>
                     <strong>{formatDuration(displayedRemainingDurationSeconds)}</strong>
                   </div>
                   <div>
@@ -1212,12 +1212,12 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
               ) : canManageTrips ? (
                 <button className="primary-action-button" type="button" onClick={handleAssignTrip} disabled={!destinationTarget || !selectedDriverId}>
                   <Navigation size={18} />
-                  Gorevlendir
+                  Görevlendir
                 </button>
               ) : (
                 <div className="no-active-trip-note">
                   <Route size={16} />
-                  <span>Bu rolde gorev atama yetkisi yok.</span>
+                  <span>Bu rolde görev atama yetkisi yok.</span>
                 </div>
               )}
             </section>
@@ -1239,7 +1239,7 @@ function LiveTrackingPage({ currentUser, municipalityName, onLogout }) {
               <h3>Sağlayıcı</h3>
               <div className="details-grid">
                 <DetailItem icon={MapPin} label="Takip Sağlayıcısı" value={selectedVehicle.provider} />
-                <DetailItem icon={CarFront} label="Arac Tipi" value={formatVehicleTypeLabel(selectedVehicle.vehicleType)} />
+                <DetailItem icon={CarFront} label="Araç Tipi" value={formatVehicleTypeLabel(selectedVehicle.vehicleType)} />
               </div>
             </section>
           </aside>

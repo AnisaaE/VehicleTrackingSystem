@@ -112,7 +112,7 @@ public sealed class VehicleTripService : IVehicleTripService
     {
         if (!request.DriverId.HasValue)
         {
-            throw new InvalidOperationException("Gorev olusturmak icin sofor secin.");
+            throw new InvalidOperationException("Görev oluşturmak için şoför seçin.");
         }
 
         var currentLocation = await _vehicleLocationService.GetCurrentLocationByPlateAsync(

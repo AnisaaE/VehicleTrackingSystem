@@ -14,12 +14,12 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const navigationItems = [
-  { id: 'tracking', path: '/tracking', label: 'Canli Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
-  { id: 'nearest', path: '/nearest', label: 'Yakin Arac', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'tracking', path: '/tracking', label: 'Canlı Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
+  { id: 'nearest', path: '/nearest', label: 'Yakın Araç', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
   { id: 'maps', path: '/maps', label: 'Haritalar', icon: Map, roles: ['ADMIN'] },
   { id: 'driverTrips', path: '/my-trips', label: 'Navigasyon', icon: LocateFixed, roles: ['DRIVER'] },
-  { id: 'driverHistory', path: '/my-trips/history', label: 'Gecmis', icon: ClipboardList, roles: ['DRIVER'] },
-  { id: 'users', path: '/users', label: 'Kullanicilar', icon: Users, roles: ['ADMIN'] },
+  { id: 'driverHistory', path: '/my-trips/history', label: 'Geçmiş', icon: ClipboardList, roles: ['DRIVER'] },
+  { id: 'users', path: '/users', label: 'Kullanıcılar', icon: Users, roles: ['ADMIN'] },
 ];
 
 function formatHeaderTime(value) {
@@ -35,7 +35,7 @@ export function StatusPill({ status = 'connected', label }) {
   return (
     <span className={`app-status-pill ${isConnected ? 'connected' : 'disconnected'}`}>
       <span />
-      {label ?? (isConnected ? 'Bagli' : 'Baglanti yok')}
+      {label ?? (isConnected ? 'Bağlı' : 'Bağlantı yok')}
     </span>
   );
 }
@@ -145,7 +145,7 @@ export function AppLayout({
               <UserCircle size={25} />
             </button>
             {onLogout && (
-              <button type="button" onClick={onLogout} aria-label="Cikis" title="Cikis">
+              <button type="button" onClick={onLogout} aria-label="Çıkış" title="Çıkış">
                 <LogOut size={21} />
               </button>
             )}

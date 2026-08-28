@@ -895,9 +895,9 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
           )}
 
           <label className="field-stack panel-field">
-            <span>Kayitli Hedefler</span>
+            <span>Kayıtlı Hedefler</span>
             <select value={selectedDestinationId} onChange={event => handleSelectDestination(event.target.value)}>
-              <option value="">Kayitli hedef sec</option>
+              <option value="">Kayıtlı hedef seç</option>
               {destinations.map(destination => (
                 <option key={destination.id} value={destination.id}>{destination.name}</option>
               ))}
