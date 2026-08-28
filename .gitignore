@@ -2,6 +2,7 @@
 bin/
 obj/
 build-check/
+backend/tmp-build/
 
 # User-specific IDE files
 .vs/
