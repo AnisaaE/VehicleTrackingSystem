@@ -215,6 +215,16 @@ export async function fetchDriverVehicleTrips(driverId) {
   return response.json();
 }
 
+export async function fetchVehicleTrip(id) {
+  const response = await apiFetch(`/api/vehicle-trips/${encodeURIComponent(id)}`);
+
+  if (!response.ok) {
+    throw await readError(response, 'Gorev detayi yuklenemedi.');
+  }
+
+  return response.json();
+}
+
 export async function fetchMyVehicleTrips() {
   const response = await apiFetch('/api/vehicle-trips/my');
 

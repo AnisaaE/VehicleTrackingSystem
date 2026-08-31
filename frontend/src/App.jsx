@@ -33,7 +33,7 @@ import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
 import { BasemapPage } from './pages/BasemapPage';
 import { NearestVehiclesPage } from './pages/NearestVehiclesPage';
-import { DriverTripHistoryPage, DriverTripsPage } from './pages/DriverTripsPage';
+import { DriverTripHistoryPage, DriverTripsPage, VehicleTripDetailPage } from './pages/DriverTripsPage';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
 import { AdminDriverHistoryPage } from './pages/AdminDriverHistoryPage';
@@ -1369,6 +1369,17 @@ export default function App() {
           )}
         />
         <RouterRoute
+          path="/my-trips/history/:tripId"
+          element={requireRoles(
+            ['DRIVER'],
+            <VehicleTripDetailPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
+        />
+        <RouterRoute
           path="/users"
           element={requireRoles(
             ['ADMIN'],
@@ -1384,6 +1395,28 @@ export default function App() {
           element={requireRoles(
             ['ADMIN'],
             <AdminDriverHistoryPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
+        />
+        <RouterRoute
+          path="/users/drivers/:driverId/history/:tripId"
+          element={requireRoles(
+            ['ADMIN'],
+            <VehicleTripDetailPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
+        />
+        <RouterRoute
+          path="/users/routes/:tripId"
+          element={requireRoles(
+            ['ADMIN'],
+            <VehicleTripDetailPage
               currentUser={user}
               municipalityName={runtimeConfig.municipalityName}
               onLogout={handleLogout}

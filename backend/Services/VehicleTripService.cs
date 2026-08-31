@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 using VehicleTrackingSystem.Data;
 using VehicleTrackingSystem.DTOs.VehicleTrips;
 using VehicleTrackingSystem.DTOs.Vehicles;
@@ -71,6 +72,29 @@ public sealed class VehicleTripService : IVehicleTripService
             .ToListAsync(cancellationToken);
 
         return await ToDtosAsync(trips, cancellationToken);
+    }
+
+    public async Task<VehicleTripDto?> GetByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default)
+    {
+        var trip = await QueryTrips()
+            .FirstOrDefaultAsync(currentTrip => currentTrip.Id == id, cancellationToken);
+
+        return trip is null ? null : await ToDtoAsync(trip, cancellationToken);
+    }
+
+    public async Task<VehicleTripDto?> GetForDriverByIdAsync(
+        int id,
+        int driverId,
+        CancellationToken cancellationToken = default)
+    {
+        var trip = await QueryTrips()
+            .FirstOrDefaultAsync(
+                currentTrip => currentTrip.Id == id && currentTrip.DriverId == driverId,
+                cancellationToken);
+
+        return trip is null ? null : await ToDtoAsync(trip, cancellationToken);
     }
 
     public async Task<VehicleTripDto?> GetActiveForVehicleAsync(
@@ -169,6 +193,9 @@ public sealed class VehicleTripService : IVehicleTripService
             EstimatedDistanceMeters = route?.DistanceMeters,
             EstimatedDurationSeconds = route?.DurationSeconds,
             RouteGeometry = route?.Geometry,
+            ActualRouteGeometry = currentLocation is null
+                ? null
+                : CreateLineString((double)currentLocation.Latitude, (double)currentLocation.Longitude),
             Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim()
         };
 
@@ -283,6 +310,11 @@ public sealed class VehicleTripService : IVehicleTripService
                 trip.Status = "IN_PROGRESS";
                 trip.StartedAt = DateTimeOffset.UtcNow;
             }
+
+            AppendActualRoutePoint(
+                trip,
+                (double)location.Latitude,
+                (double)location.Longitude);
 
             var distanceToDestination = DistanceMeters(
                 (double)location.Latitude,
@@ -442,6 +474,7 @@ public sealed class VehicleTripService : IVehicleTripService
             trip.ActualDistanceMeters,
             trip.ActualDurationSeconds,
             trip.RouteGeometry,
+            trip.ActualRouteGeometry,
             trip.Notes);
     }
 
@@ -476,11 +509,111 @@ public sealed class VehicleTripService : IVehicleTripService
         trip.CompletedByEmployeeId ??= completedByEmployeeId;
         trip.CompletionLatitude ??= completionLatitude;
         trip.CompletionLongitude ??= completionLongitude;
-        trip.ActualDistanceMeters ??= trip.EstimatedDistanceMeters;
+
+        if (completionLatitude.HasValue && completionLongitude.HasValue)
+        {
+            AppendActualRoutePoint(trip, completionLatitude.Value, completionLongitude.Value);
+        }
+
+        trip.ActualDistanceMeters ??= GetLineStringDistanceMeters(trip.ActualRouteGeometry) ?? trip.EstimatedDistanceMeters;
 
         trip.ActualDurationSeconds ??= Math.Max(
             0,
             (completedAt - trip.AssignedAt).TotalSeconds);
+    }
+
+    private static void AppendActualRoutePoint(
+        VehicleTrip trip,
+        double latitude,
+        double longitude)
+    {
+        var points = ParseLineStringPoints(trip.ActualRouteGeometry);
+        (double Latitude, double Longitude)? lastPoint = points.Count == 0 ? null : points[^1];
+
+        if (lastPoint is not null &&
+            DistanceMeters(lastPoint.Value.Latitude, lastPoint.Value.Longitude, latitude, longitude) < 5)
+        {
+            return;
+        }
+
+        points.Add((latitude, longitude));
+        trip.ActualRouteGeometry = CreateLineString(points);
+    }
+
+    private static string CreateLineString(double latitude, double longitude) =>
+        CreateLineString([(latitude, longitude)]);
+
+    private static string CreateLineString(IReadOnlyList<(double Latitude, double Longitude)> points) =>
+        JsonSerializer.Serialize(new
+        {
+            type = "LineString",
+            coordinates = points.Select(point => new[] { point.Longitude, point.Latitude }).ToArray()
+        });
+
+    private static List<(double Latitude, double Longitude)> ParseLineStringPoints(string? geometry)
+    {
+        var points = new List<(double Latitude, double Longitude)>();
+
+        if (string.IsNullOrWhiteSpace(geometry))
+        {
+            return points;
+        }
+
+        try
+        {
+            using var document = JsonDocument.Parse(geometry);
+            var root = document.RootElement;
+
+            if (!root.TryGetProperty("type", out var typeElement) ||
+                !string.Equals(typeElement.GetString(), "LineString", StringComparison.OrdinalIgnoreCase) ||
+                !root.TryGetProperty("coordinates", out var coordinatesElement) ||
+                coordinatesElement.ValueKind != JsonValueKind.Array)
+            {
+                return points;
+            }
+
+            foreach (var coordinateElement in coordinatesElement.EnumerateArray())
+            {
+                if (coordinateElement.ValueKind != JsonValueKind.Array ||
+                    coordinateElement.GetArrayLength() < 2)
+                {
+                    continue;
+                }
+
+                points.Add((
+                    coordinateElement[1].GetDouble(),
+                    coordinateElement[0].GetDouble()));
+            }
+        }
+        catch (JsonException)
+        {
+            return [];
+        }
+
+        return points;
+    }
+
+    private static double? GetLineStringDistanceMeters(string? geometry)
+    {
+        var points = ParseLineStringPoints(geometry);
+
+        if (points.Count < 2)
+        {
+            return null;
+        }
+
+        double distance = 0;
+
+        for (var index = 1; index < points.Count; index += 1)
+        {
+            distance += DistanceMeters(
+                points[index - 1].Latitude,
+                points[index - 1].Longitude,
+                points[index].Latitude,
+                points[index].Longitude);
+        }
+
+        return distance;
     }
 
     private static double DistanceMeters(

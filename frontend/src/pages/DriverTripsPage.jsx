@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle2, Clock3, Gauge, LocateFixed, MapPin, Navigation, Route, Wifi } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Eye, Gauge, LocateFixed, MapPin, Navigation, Route, Wifi } from 'lucide-react';
 import { MapContainer, Marker, Polyline, Popup, ZoomControl, useMap } from 'react-leaflet';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import L from 'leaflet';
 import { appConfig } from '../config';
-import { completeVehicleTrip, fetchMyVehicleTrips, fetchRoute } from '../api';
+import { completeVehicleTrip, fetchMyVehicleTrips, fetchRoute, fetchVehicleTrip } from '../api';
 import { AppLayout } from '../components/AppLayout';
 import { BasemapLayer } from '../components/BasemapLayer';
 import { useVehicleLocations } from '../useVehicleLocations';
@@ -81,6 +82,10 @@ function formatCoordinates(latitude, longitude) {
   }
 
   return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+}
+
+function destinationLabel(trip) {
+  return trip.destinationName ?? `${trip.destinationLatitude.toFixed(5)}, ${trip.destinationLongitude.toFixed(5)}`;
 }
 
 function MapFocus({ destination, focusKey, positions, vehicle }) {
@@ -419,6 +424,7 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
   const [trips, setTrips] = useState([]);
   const [error, setError] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -479,7 +485,17 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
                   <span>{trip.vehiclePlate}</span>
                   <h2>{trip.destinationName ?? 'Harita hedefi'}</h2>
                 </div>
-                <em>{trip.status}</em>
+                <div className="driver-trip-heading-actions">
+                  <em>{trip.status}</em>
+                  <button
+                    className="icon-text-button compact-action-button"
+                    type="button"
+                    onClick={() => navigate(`/my-trips/history/${trip.id}`)}
+                  >
+                    <Eye size={16} />
+                    Detayları gör
+                  </button>
+                </div>
               </div>
 
               <div className="driver-trip-grid">
@@ -522,6 +538,238 @@ export function DriverTripHistoryPage({ currentUser, municipalityName, onLogout 
             </article>
           ))}
         </div>
+      </section>
+    </AppLayout>
+  );
+}
+
+function TripDetailMapFocus({ actualPositions, plannedPositions, destination, completion }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const points = [
+      ...plannedPositions,
+      ...actualPositions,
+      destination,
+      completion
+    ].filter(Boolean);
+
+    if (points.length === 0) {
+      return;
+    }
+
+    if (points.length === 1) {
+      map.setView(points[0], 14);
+      return;
+    }
+
+    map.fitBounds(L.latLngBounds(points), {
+      padding: [42, 42],
+      maxZoom: 15
+    });
+  }, [actualPositions, completion, destination, map, plannedPositions]);
+
+  return null;
+}
+
+function TripDetailMap({ trip }) {
+  const plannedPositions = useMemo(
+    () => routeToPositions({ geometry: trip.routeGeometry }),
+    [trip.routeGeometry]
+  );
+  const actualPositions = useMemo(
+    () => routeToPositions({ geometry: trip.actualRouteGeometry }),
+    [trip.actualRouteGeometry]
+  );
+  const destination = [trip.destinationLatitude, trip.destinationLongitude];
+  const completion = Number.isFinite(trip.completionLatitude) && Number.isFinite(trip.completionLongitude)
+    ? [trip.completionLatitude, trip.completionLongitude]
+    : null;
+
+  return (
+    <MapContainer
+      center={appConfig.mapCenter}
+      zoom={appConfig.mapZoom}
+      className="trip-detail-map"
+      scrollWheelZoom
+      zoomControl={false}
+    >
+      <BasemapLayer />
+      <ZoomControl position="topright" />
+      <TripDetailMapFocus
+        actualPositions={actualPositions}
+        plannedPositions={plannedPositions}
+        destination={destination}
+        completion={completion}
+      />
+      {plannedPositions.length > 0 && (
+        <Polyline
+          positions={plannedPositions}
+          pathOptions={{ color: '#2563eb', weight: 6, opacity: 0.78 }}
+        >
+          <Popup>Planlanan rota</Popup>
+        </Polyline>
+      )}
+      {actualPositions.length > 1 && (
+        <Polyline
+          positions={actualPositions}
+          pathOptions={{ color: '#16a34a', weight: 5, opacity: 0.9, dashArray: '8 8' }}
+        >
+          <Popup>Gerçekleşen rota</Popup>
+        </Polyline>
+      )}
+      <Marker position={destination} icon={destinationIcon}>
+        <Popup>
+          <strong>{destinationLabel(trip)}</strong>
+        </Popup>
+      </Marker>
+      {completion && (
+        <Marker position={completion} icon={driverVehicleIcon} zIndexOffset={1000}>
+          <Popup>
+            <strong>Tamamlanan konum</strong>
+            <span>{formatCoordinates(trip.completionLatitude, trip.completionLongitude)}</span>
+          </Popup>
+        </Marker>
+      )}
+    </MapContainer>
+  );
+}
+
+function hasActualRouteGeometry(trip) {
+  return routeToPositions({ geometry: trip.actualRouteGeometry }).length > 1;
+}
+
+function DetailRow({ label, value }) {
+  return (
+    <div>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+export function VehicleTripDetailPage({ currentUser, municipalityName, onLogout }) {
+  const { tripId, driverId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [trip, setTrip] = useState(location.state?.trip ?? null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const backPath = location.state?.backPath ?? (driverId ? `/users/drivers/${driverId}/history` : '/my-trips/history');
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setIsLoading(true);
+    setError(null);
+
+    fetchVehicleTrip(tripId)
+      .then(nextTrip => {
+        if (isMounted) {
+          setTrip(nextTrip);
+        }
+      })
+      .catch(nextError => {
+        if (isMounted) {
+          setError(nextError.message);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [tripId]);
+
+  return (
+    <AppLayout
+      activePage={driverId ? 'users' : 'driverHistory'}
+      connectionStatus="connected"
+      headerIcon={Route}
+      municipalityName={municipalityName}
+      onLogout={onLogout}
+      title="Rota Detayları"
+      user={currentUser}
+    >
+      <section className="trip-detail-dashboard">
+        <aside className="workspace-panel trip-detail-panel">
+          <button className="icon-text-button" type="button" onClick={() => navigate(backPath)}>
+            <ArrowLeft size={18} />
+            Geri
+          </button>
+
+          {isLoading && !trip ? (
+            <div className="empty-panel-state">Rota detayı yükleniyor.</div>
+          ) : !trip && error ? (
+            <div className="inline-notice error">{error}</div>
+          ) : !trip ? (
+            <div className="empty-panel-state">Rota detayı bulunamadı.</div>
+          ) : (
+            <>
+              {error && <div className="inline-notice error">{error}</div>}
+
+              <div className="details-heading">
+                <div>
+                  <span>{trip.vehiclePlate} · {trip.vehicleTypeName ?? trip.vehicleTypeCode ?? 'Araç'}</span>
+                  <h2>{destinationLabel(trip)}</h2>
+                </div>
+                <em className="trip-status-badge">{trip.status}</em>
+              </div>
+
+              <section className="trip-detail-section">
+                <h3>Görev</h3>
+                <DetailRow label="Sürücü" value={trip.driverName ?? '-'} />
+                <DetailRow label="Görevlendiren" value={trip.assignedByEmployeeName ?? '-'} />
+                <DetailRow label="Tamamlayan" value={trip.completedByEmployeeName ?? '-'} />
+                <DetailRow label="Not" value={trip.notes ?? '-'} />
+              </section>
+
+              <section className="trip-detail-section">
+                <h3>Zaman</h3>
+                <DetailRow label="Atanma" value={formatDateTime(trip.assignedAt)} />
+                <DetailRow label="Başlama" value={formatDateTime(trip.startedAt)} />
+                <DetailRow label="Tamamlanma" value={formatDateTime(trip.completedAt)} />
+                <DetailRow label="Tahmin süre" value={formatDuration(trip.estimatedDurationSeconds)} />
+                <DetailRow label="Gerçek süre" value={formatDuration(trip.actualDurationSeconds)} />
+              </section>
+
+              <section className="trip-detail-section">
+                <h3>Rota</h3>
+                <DetailRow label="Nereden" value={trip.originFacilityName ?? 'Mevcut konum'} />
+                <DetailRow label="Nereye" value={destinationLabel(trip)} />
+                <DetailRow label="Planlanan mesafe" value={formatDistance(trip.estimatedDistanceMeters)} />
+                <DetailRow label="Gerçek mesafe" value={formatDistance(trip.actualDistanceMeters)} />
+                <DetailRow label="Tamamlanan konum" value={formatCoordinates(trip.completionLatitude, trip.completionLongitude)} />
+              </section>
+
+              <div className="trip-map-legend">
+                <span><i className="planned" /> Planlanan rota</span>
+                <span className={hasActualRouteGeometry(trip) ? '' : 'muted'}>
+                  <i className="actual" />
+                  Gerçekleşen rota
+                </span>
+              </div>
+
+              {!hasActualRouteGeometry(trip) && (
+                <div className="inline-notice route-data-notice">
+                  Bu görev için gerçekleşen rota çizgisi kaydedilmemiş. Yeni görevlerde GPS noktaları geldikçe otomatik kaydedilir.
+                </div>
+              )}
+            </>
+          )}
+        </aside>
+
+        <section className="map-stage trip-detail-map-stage">
+          {trip ? (
+            <TripDetailMap trip={trip} />
+          ) : (
+            <div className="empty-panel-state">Harita için rota seçin.</div>
+          )}
+        </section>
       </section>
     </AppLayout>
   );

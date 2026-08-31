@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { BarChart3, Clock3, History, ListChecks, RefreshCw, Route, Shield, Truck, UserPlus, Users, X } from 'lucide-react';
+import { BarChart3, Clock3, Eye, History, ListChecks, RefreshCw, Route, Shield, Truck, UserPlus, Users, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { createUser, fetchUsers, fetchVehicleTrips, updateUserRole, updateUserStatus } from '../api';
 import { AppLayout } from '../components/AppLayout';
@@ -291,6 +291,14 @@ export function UsersPage({ currentUser, municipalityName, onLogout }) {
                       </div>
                       <span>{trip.status}</span>
                       <time>{formatDateTime(trip.assignedAt)}</time>
+                      <button
+                        className="icon-text-button compact-action-button"
+                        type="button"
+                        onClick={() => navigate(`/users/routes/${trip.id}`, { state: { trip, backPath: '/users' } })}
+                      >
+                        <Eye size={16} />
+                        Detayları gör
+                      </button>
                     </article>
                   ))}
                 </section>

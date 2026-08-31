@@ -15,6 +15,15 @@ public interface IVehicleTripService
         string providerCode,
         CancellationToken cancellationToken = default);
 
+    Task<VehicleTripDto?> GetByIdAsync(
+        int id,
+        CancellationToken cancellationToken = default);
+
+    Task<VehicleTripDto?> GetForDriverByIdAsync(
+        int id,
+        int driverId,
+        CancellationToken cancellationToken = default);
+
     Task<VehicleTripDto?> GetActiveForVehicleAsync(
         string providerCode,
         string plate,

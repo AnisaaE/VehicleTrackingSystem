@@ -52,5 +52,7 @@ public sealed class VehicleTrip
 
     public string? RouteGeometry { get; set; }
 
+    public string? ActualRouteGeometry { get; set; }
+
     public string? Notes { get; set; }
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, CheckCircle2, Clock3, MapPin, Route } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Clock3, Eye, MapPin, Route } from 'lucide-react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { fetchDriverVehicleTrips } from '../api';
 import { AppLayout } from '../components/AppLayout';
@@ -108,7 +108,17 @@ export function AdminDriverHistoryPage({ currentUser, municipalityName, onLogout
                   <span>{trip.vehiclePlate} · {trip.vehicleTypeName ?? trip.vehicleTypeCode ?? 'Araç'}</span>
                   <h2>{trip.originFacilityName ?? 'Mevcut konum'} → {destinationLabel(trip)}</h2>
                 </div>
-                <em>{trip.status}</em>
+                <div className="driver-trip-heading-actions">
+                  <em>{trip.status}</em>
+                  <button
+                    className="icon-text-button compact-action-button"
+                    type="button"
+                    onClick={() => navigate(`/users/drivers/${driverId}/history/${trip.id}`, { state: { trip, driverName } })}
+                  >
+                    <Eye size={16} />
+                    Detayları gör
+                  </button>
+                </div>
               </div>
 
               <div className="driver-trip-grid">

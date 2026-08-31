@@ -228,6 +228,10 @@ public class VehicleTrackingDbContext : DbContext
             entity.Property(trip => trip.Notes)
                 .HasMaxLength(1000);
 
+            entity.Property(trip => trip.RouteGeometry);
+
+            entity.Property(trip => trip.ActualRouteGeometry);
+
             entity.HasIndex(trip => new
             {
                 trip.VehicleId,

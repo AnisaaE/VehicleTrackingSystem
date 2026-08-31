@@ -32,4 +32,5 @@ public sealed record VehicleTripDto(
     double? ActualDistanceMeters,
     double? ActualDurationSeconds,
     string? RouteGeometry,
+    string? ActualRouteGeometry,
     string? Notes);

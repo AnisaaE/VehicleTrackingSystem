@@ -38,6 +38,43 @@ public sealed class VehicleTripsController : ControllerBase
         return Ok(await _vehicleTripService.GetForDriverAsync(driverId, cancellationToken));
     }
 
+    [HttpGet("{id:int}")]
+    [Authorize(Roles = AppRoles.All)]
+    [ProducesResponseType(typeof(VehicleTripDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<VehicleTripDto>> GetById(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        VehicleTripDto? trip;
+
+        if (User.IsInRole(AppRoles.Driver) &&
+            !User.IsInRole(AppRoles.Admin) &&
+            !User.IsInRole(AppRoles.Dispatcher))
+        {
+            var employeeId = User.GetEmployeeId();
+
+            if (!employeeId.HasValue)
+            {
+                return Unauthorized(new ErrorResponse("User token does not include an employee id."));
+            }
+
+            trip = await _vehicleTripService.GetForDriverByIdAsync(id, employeeId.Value, cancellationToken);
+        }
+        else
+        {
+            trip = await _vehicleTripService.GetByIdAsync(id, cancellationToken);
+        }
+
+        if (trip is null)
+        {
+            return NotFound(new ErrorResponse($"Vehicle trip with id '{id}' was not found."));
+        }
+
+        return Ok(trip);
+    }
+
     [HttpGet("active")]
     [ProducesResponseType(typeof(IReadOnlyList<VehicleTripDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<VehicleTripDto>>> GetActive(
