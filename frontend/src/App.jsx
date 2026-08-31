@@ -31,13 +31,14 @@ import {
 } from './api';
 import { useVehicleLocations } from './useVehicleLocations';
 import { MapsPage } from './pages/MapsPage';
+import { BasemapPage } from './pages/BasemapPage';
 import { NearestVehiclesPage } from './pages/NearestVehiclesPage';
 import { DriverTripHistoryPage, DriverTripsPage } from './pages/DriverTripsPage';
 import { LoginPage } from './pages/LoginPage';
 import { UsersPage } from './pages/UsersPage';
 import { AdminDriverHistoryPage } from './pages/AdminDriverHistoryPage';
 import { AppLayout } from './components/AppLayout';
-import { GoogleMapLayer } from './components/GoogleMapLayer';
+import { BasemapLayer } from './components/BasemapLayer';
 import { useAuth } from './context/AuthContext';
 
 function createVehicleIcon(iconUrl, className = '') {
@@ -249,7 +250,7 @@ function VehicleMap({ vehicles, selectedVehicle, destinationTarget, remainingRou
       scrollWheelZoom
       zoomControl={false}
     >
-      <GoogleMapLayer />
+      <BasemapLayer />
       <ZoomControl position="topright" />
       <MapFocus vehicles={vehicles} selectedVehicle={selectedVehicle} />
       {activeTripRoutes
@@ -1328,6 +1329,17 @@ export default function App() {
           element={requireRoles(
             ['ADMIN'],
             <MapsPage
+              currentUser={user}
+              municipalityName={runtimeConfig.municipalityName}
+              onLogout={handleLogout}
+            />
+          )}
+        />
+        <RouterRoute
+          path="/basemaps"
+          element={requireRoles(
+            ['ADMIN', 'DISPATCHER', 'VIEWER', 'DRIVER'],
+            <BasemapPage
               currentUser={user}
               municipalityName={runtimeConfig.municipalityName}
               onLogout={handleLogout}

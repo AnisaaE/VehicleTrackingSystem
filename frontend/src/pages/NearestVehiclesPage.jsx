@@ -20,7 +20,7 @@ import L from 'leaflet';
 import { appConfig } from '../config';
 import { fetchActiveVehicleTrips, fetchDestinations, fetchFacilities, fetchRoute, geocodeAddress } from '../api';
 import { AppLayout } from '../components/AppLayout';
-import { GoogleMapLayer } from '../components/GoogleMapLayer';
+import { BasemapLayer } from '../components/BasemapLayer';
 import { useVehicleLocations } from '../useVehicleLocations';
 
 function createVehicleIcon(iconUrl, className = '') {
@@ -349,7 +349,7 @@ function NearbyMap({
 
   return (
     <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="vehicle-map" scrollWheelZoom zoomControl={false}>
-      <GoogleMapLayer />
+      <BasemapLayer />
       <ZoomControl position="topright" />
       <NearbyMapFocus
         facilities={facilities}

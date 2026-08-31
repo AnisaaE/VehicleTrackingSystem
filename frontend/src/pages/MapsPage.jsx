@@ -33,7 +33,7 @@ import {
   geocodeAddress
 } from '../api';
 import { AppLayout } from '../components/AppLayout';
-import { GoogleMapLayer } from '../components/GoogleMapLayer';
+import { BasemapLayer } from '../components/BasemapLayer';
 
 const markerIcon = new L.Icon({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -763,7 +763,7 @@ export function MapsPage({ currentUser, municipalityName, onLogout }) {
 
         <section className="map-stage maps-map-stage">
           <MapContainer center={appConfig.mapCenter} zoom={appConfig.mapZoom} className="maps-canvas" scrollWheelZoom zoomControl={false}>
-            <GoogleMapLayer />
+            <BasemapLayer />
             <ZoomControl position="topright" />
             {canEditMaps && <DrawingTools onGeometryCreated={handleGeometryCreated} />}
             {canEditMaps && <MapCommandToolbar isPickMode={isPickMode} />}

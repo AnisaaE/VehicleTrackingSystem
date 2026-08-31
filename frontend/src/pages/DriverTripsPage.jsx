@@ -5,7 +5,7 @@ import L from 'leaflet';
 import { appConfig } from '../config';
 import { completeVehicleTrip, fetchMyVehicleTrips, fetchRoute } from '../api';
 import { AppLayout } from '../components/AppLayout';
-import { GoogleMapLayer } from '../components/GoogleMapLayer';
+import { BasemapLayer } from '../components/BasemapLayer';
 import { useVehicleLocations } from '../useVehicleLocations';
 
 const destinationIcon = new L.Icon({
@@ -129,7 +129,7 @@ function DriverRouteMap({ destination, focusKey, route, vehicle }) {
       scrollWheelZoom
       zoomControl={false}
     >
-      <GoogleMapLayer />
+      <BasemapLayer />
       <ZoomControl position="topright" />
       <MapFocus destination={destination} focusKey={focusKey} positions={positions} vehicle={vehicle} />
       {positions.length > 0 && <Polyline positions={positions} pathOptions={{ color: '#2563eb', weight: 6 }} />}

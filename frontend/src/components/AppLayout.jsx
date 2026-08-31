@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import {
   Building2,
   ClipboardList,
+  Layers,
   LocateFixed,
   LogOut,
   Map,
@@ -17,6 +18,7 @@ const navigationItems = [
   { id: 'tracking', path: '/tracking', label: 'Canlı Takip', icon: MapPinned, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
   { id: 'nearest', path: '/nearest', label: 'Yakın Araç', icon: LocateFixed, roles: ['ADMIN', 'DISPATCHER', 'VIEWER'] },
   { id: 'maps', path: '/maps', label: 'Haritalar', icon: Map, roles: ['ADMIN'] },
+  { id: 'basemaps', path: '/basemaps', label: 'Altlık', icon: Layers, roles: ['ADMIN', 'DISPATCHER', 'VIEWER', 'DRIVER'] },
   { id: 'driverTrips', path: '/my-trips', label: 'Navigasyon', icon: LocateFixed, roles: ['DRIVER'] },
   { id: 'driverHistory', path: '/my-trips/history', label: 'Geçmiş', icon: ClipboardList, roles: ['DRIVER'] },
   { id: 'users', path: '/users', label: 'Kullanıcılar', icon: Users, roles: ['ADMIN'] },
