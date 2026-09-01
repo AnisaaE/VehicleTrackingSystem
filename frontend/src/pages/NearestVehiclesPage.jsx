@@ -1073,14 +1073,14 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
       lastUpdatedAt={lastUpdatedAt}
       municipalityName={municipalityName}
       onLogout={onLogout}
-      title="Yakindaki Araclar"
+      title="Yakındaki Araçlar"
       user={currentUser}
     >
       <section className="nearest-dashboard">
         <aside className="workspace-panel nearest-facilities-panel">
           <div className="panel-heading">
             <div>
-              <span>Konum Secimi</span>
+              <span>Konum Seçimi</span>
               <h2>Hedef veya tesis</h2>
             </div>
             <button
@@ -1088,7 +1088,7 @@ export function NearestVehiclesPage({ currentUser, municipalityName, onLogout })
               type="button"
               onClick={() => setIsFacilityListOpen(current => !current)}
               aria-expanded={isFacilityListOpen}
-              title={isFacilityListOpen ? 'Tesisleri kapat' : 'Tesisleri ac'}
+              title={isFacilityListOpen ? 'Tesisleri kapat' : 'Tesisleri aç'}
             >
               <span>{visibleFacilities.length}</span>
               <ChevronDown size={17} />
